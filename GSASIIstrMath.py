@@ -26,6 +26,10 @@ import GSASIIspc as G2spc
 import GSASIIpwd as G2pwd
 import GSASIImapvars as G2mv
 import GSASIImath as G2mth
+# </ Anton Gagin            
+import config_example
+#  Anton Gagin  />     
+
 sind = lambda x: np.sin(x*np.pi/180.)
 cosd = lambda x: np.cos(x*np.pi/180.)
 tand = lambda x: np.tan(x*np.pi/180.)
@@ -1928,6 +1932,9 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #            print 'sf calc time: %.3fs'%(time.time()-time0)
         time0 = time.time()
         badPeak = False
+# </ Anton Gagin            
+        fwhm = []
+#  Anton Gagin  />          
         for iref,refl in enumerate(refDict['RefList']):
             if 'C' in calcControls[hfx+'histType']:
                 if im:
@@ -1953,6 +1960,9 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #                        print ' ***Error %d,%d,%d missing from Pawley reflection list ***'%(h,k,l)
                         continue
                 Wd,fmin,fmax = G2pwd.getWidthsCW(refl[5+im],refl[6+im],refl[7+im],shl)
+# </ Anton Gagin            
+                fwhm.append(2.355*Wd[0]+2.*Wd[1])
+#  Anton Gagin  />  
                 iBeg = np.searchsorted(x,refl[5+im]-fmin)
                 iFin = np.searchsorted(x,refl[5+im]+fmax)
                 if not iBeg+iFin:       #peak below low limit - skip peak
@@ -1966,6 +1976,9 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
                 if Ka2:
                     pos2 = refl[5+im]+lamRatio*tand(refl[5+im]/2.0)       # + 360/pi * Dlam/lam * tan(th)
                     Wd,fmin,fmax = G2pwd.getWidthsCW(pos2,refl[6+im],refl[7+im],shl)
+# </ Anton Gagin            
+                    fwhm.append(2.355*Wd[0]+2.*Wd[1])
+#  Anton Gagin  />  
                     iBeg = np.searchsorted(x,pos2-fmin)
                     iFin = np.searchsorted(x,pos2+fmax)
                     if not iBeg+iFin:       #peak below low limit - skip peak
@@ -2009,6 +2022,10 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #        print 'profile calc time: %.3fs'%(time.time()-time0)
     if badPeak:
         print 'ouch #4 bad profile coefficients yield negative peak width; some reflections skipped' 
+# </ Anton Gagin            
+    config_example.meanFWHM[hId] = np.mean(fwhm)
+#  Anton Gagin  />     
+    
     return yc,yb
     
 def getPowderProfileDerv(parmDict,x,varylist,Histogram,Phases,rigidbodyDict,calcControls,pawleyLookup):

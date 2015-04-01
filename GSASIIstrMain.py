@@ -37,6 +37,7 @@ import GSASIIobj as G2obj
 #Anton Gagin->
 import scipy as sp
 import matplotlib.pyplot as plt
+import config_example                
 from scipy import interpolate
 from scipy import linalg
 from scipy.integrate import quad
@@ -71,6 +72,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         Histogram = Histograms[histogram]
         hId = Histogram['hId']    
         nHist = nHist + 1
+    config_example.meanFWHM = [0]*nHist
 # Anton Gagin />
 
     while True:
@@ -181,6 +183,9 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
     nBlocks = Controls['corrParam num blocks s'].split(',')
     nBlocks = [int(p) for p in nBlocks]*nHist
     
+    
+    l_delta = config_example.meanFWHM/2.5
+    print 'l_delta', l_delta
     if(np.any(E_beta) or np.any(E_mu) or np.any(nBlocks)):
         print "Bayesian-corrected refinement"
 # =1.2 Functions=
@@ -712,6 +717,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             np.savetxt(fname=printCorFile, X=dat.T, header=header, fmt='%1.5e')
         
     G2stMth.GetFobsSq(Histograms,Phases,parmDict,calcControls)
+    print "config_example.meanFWHM", config_example.meanFWHM
     return IfOK,Rvals,result,covMatrix,sig
 
 def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, dx_opt, ydiff, ystd, yexp, ycor, yuncor):
