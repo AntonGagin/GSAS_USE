@@ -855,7 +855,8 @@ DefaultControls = {
     'corrParam E_mu':str(0), 'corrParam k_mu':str(0),
     'corrParam E_beta':str(0), 'corrParam k_beta':str(0),
     'corrParam sigma_delta':str(0), 'corrParam l_delta':str(0),
-    'corrParam num blocks s': str(0), 
+    'corrParam num blocks s': str(0), 'corrParam FWHMDivN':"none",
+    'corrParam l_deltaDivN':"none", 
 # Anton Gagin />   
     'Author':'no name',
     'FreePrm1':'Sample humidity (%)',

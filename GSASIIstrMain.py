@@ -175,17 +175,28 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 # sigma_delta: standard deviation for peak-shape correction
 # l_delta: correlation length for peak-shape correction
 # nBlocks: number of blocks s to use for each Histogram 
-    sigma_delta = [0]*nHist
-    sigma_delta = Controls['corrParam sigma_delta'].split(',')
-    sigma_delta = [float(p) for p in sigma_delta]*nHist
     l_delta = Controls['corrParam l_delta'].split(',')
-    l_delta = [float(p) for p in l_delta]*nHist        
+    if l_delta[0] == 'none':
+        divN = Controls['corrParam FWHMDivN'].split(',')
+        divN = [float(p) for p in divN]*nHist
+        l_delta = np.array(config_example.meanFWHM)/np.array(divN)[range(nHist)]  
+    else:        
+        l_delta = [float(p) for p in l_delta]*nHist  
+    
+    sigma_delta = Controls['corrParam sigma_delta'].split(',')
+    if sigma_delta[0] == 'none':
+        divN = Controls['corrParam l_deltaDivN'].split(',')
+        divN = [float(p) for p in divN]*nHist
+        sigma_delta = np.array(l_delta)[range(nHist)]/np.array(divN)[range(nHist)]  
+    else:        
+        sigma_delta = [float(p) for p in sigma_delta]*nHist
+        
     nBlocks = Controls['corrParam num blocks s'].split(',')
     nBlocks = [int(p) for p in nBlocks]*nHist
     
     
-    l_delta = config_example.meanFWHM/2.5
     print 'l_delta', l_delta
+    print 'sigma_delta', sigma_delta
     if(np.any(E_beta) or np.any(E_mu) or np.any(nBlocks)):
         print "Bayesian-corrected refinement"
 # =1.2 Functions=

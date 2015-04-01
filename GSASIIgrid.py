@@ -2578,12 +2578,16 @@ def UpdateControls(G2frame,data):
 # peak-shape controls
     if 'corrParam sigma_delta' not in data:
         data['corrParam sigma_delta'] = str(0)   
-    if 'corrParam sigma_delta tmp' not in data:
-        data['corrParam sigma_delta tmp'] = str(0)  
     if 'corrParam l_delta' not in data:
         data['corrParam l_delta'] = str(0)  
+    if 'corrParam l_delta tmp' not in data:
+        data['corrParam l_delta tmp'] = str(0)          
     if 'corrParam num blocks s' not in data:
         data['corrParam num blocks s'] = str(0)
+    if 'corrParam FWHMDivN' not in data:
+        data['corrParam FWHMDivN'] = "none"  
+    if 'corrParam l_deltaDivN' not in data:
+        data['corrParam l_deltaDivN'] = "none"             
 #    if 'EstimateKMu' not in data:
     data['EstimateKMu'] = False  
 #    if 'EstimateKBeta' not in data:
@@ -2767,7 +2771,7 @@ def UpdateControls(G2frame,data):
         MargKMu.Bind(wx.EVT_KILL_FOCUS, OnMargKMu)
         MargMultSizer.Add(MargKMu,0,WACV)   
         
-        OptKMu = wx.CheckBox(G2frame.dataDisplay,-1,label=' Estimate optimal mu?')
+        OptKMu = wx.CheckBox(G2frame.dataDisplay,-1,label=' Estimate optimal k_mu?')
         OptKMu.Bind(wx.EVT_CHECKBOX, OnOptKMu)
         OptKMu.SetValue(data['EstimateKMu'])
         MargMultSizer.Add(OptKMu,0,WACV)     
@@ -2811,38 +2815,60 @@ def UpdateControls(G2frame,data):
         MargKBeta.Bind(wx.EVT_KILL_FOCUS, OnMargKBeta)
         MargAddSizer.Add(MargKBeta,0,WACV)   
         
-        OptKBeta = wx.CheckBox(G2frame.dataDisplay,-1,label=' Estimate optimal mu?')
+        OptKBeta = wx.CheckBox(G2frame.dataDisplay,-1,label=' Estimate optimal k_beta?')
         OptKBeta.Bind(wx.EVT_CHECKBOX, OnOptKBeta)
         OptKBeta.SetValue(data['EstimateKBeta'])
         MargAddSizer.Add(OptKBeta,0,WACV)     
         
         return MargAddSizer
 
-        
-    def MargShapeSizer():
+    def MargNumBlocksSizer():
 # additional controls in main Controls data tree entry for the peak-shape factor
-   
-        def OnSigDel(event):
-            data['corrParam sigma_delta'] = SigDel.GetValue()
-            SigDel.SetValue(data['corrParam sigma_delta'])
-#            wx.CallAfter(UpdateControls,G2frame,data)     
-        def OnLDel(event):
-            data['corrParam l_delta'] = LDel.GetValue()
-            LDel.SetValue(data['corrParam l_delta'])
-#            wx.CallAfter(UpdateControls,G2frame,data)     
         def OnBlocksNum(event):
             data['corrParam num blocks s'] = BlocksNum.GetValue()
             BlocksNum.SetValue(data['corrParam num blocks s'])
-                        
-        MargShapeSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)
-        
-        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Number of blocks s: '),0,WACV)
+
+        MargNumBlocksSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)
+        MargNumBlocksSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Number of blocks s: '),0,WACV)
         BlocksNum = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam num blocks s'],style=wx.TE_PROCESS_ENTER)
         BlocksNum.SetValue(data['corrParam num blocks s'])
         BlocksNum.Bind(wx.EVT_TEXT_ENTER, OnBlocksNum)
         BlocksNum.Bind(wx.EVT_KILL_FOCUS, OnBlocksNum)
-        MargShapeSizer.Add(BlocksNum,0,WACV)
+        MargNumBlocksSizer.Add(BlocksNum,0,WACV)
+
+        return MargNumBlocksSizer   
+
         
+    def MargShapeSizer():
+# additional controls in main Controls data tree entry for the peak-shape factor
+        def OnSigDel(event):
+            data['corrParam sigma_delta'] = SigDel.GetValue()
+            SigDel.SetValue(data['corrParam sigma_delta'])
+            LDelDiv.SetValue("none")            
+            data['corrParam l_deltaDivN'] = "none"
+            
+        def OnLDelDiv(event):
+            data['corrParam l_deltaDivN'] = LDelDiv.GetValue()
+            LDelDiv.SetValue(data['corrParam l_deltaDivN'])
+            SigDel.SetValue("none") 
+            data['corrParam sigma_delta'] = "none"
+            
+#            wx.CallAfter(UpdateControls,G2frame,data)     
+        def OnLDel(event):
+            data['corrParam l_delta'] = LDel.GetValue()
+            LDel.SetValue(data['corrParam l_delta'])
+            FWHMDiv.SetValue("none")
+            data['corrParam FWHMDivN'] = "none"
+#            wx.CallAfter(UpdateControls,G2frame,data)     
+        
+        def OnFWHMDiv(event):
+            data['corrParam FWHMDivN'] = FWHMDiv.GetValue()
+            FWHMDiv.SetValue(data['corrParam FWHMDivN'])
+            LDel.SetValue("none")            
+            data['corrParam l_delta'] = "none"
+            
+        MargShapeSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)
+                
         MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Correlation legth l_delta: '),0,WACV)
         LDel = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam l_delta'],style=wx.TE_PROCESS_ENTER)
         LDel.SetValue(data['corrParam l_delta'])
@@ -2850,13 +2876,27 @@ def UpdateControls(G2frame,data):
         LDel.Bind(wx.EVT_KILL_FOCUS, OnLDel)
         MargShapeSizer.Add(LDel,0,WACV)
         
+        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' OR estimate it as mean(FWHM)/ '),0,WACV)
+        FWHMDiv = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam FWHMDivN'],style=wx.TE_PROCESS_ENTER)
+        FWHMDiv.SetValue(data['corrParam FWHMDivN'])
+        FWHMDiv.Bind(wx.EVT_TEXT_ENTER, OnFWHMDiv)
+        FWHMDiv.Bind(wx.EVT_KILL_FOCUS, OnFWHMDiv)
+        MargShapeSizer.Add(FWHMDiv,0,WACV)
+        
         MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Stdev sigma_delta: '),0,WACV)
         SigDel = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam sigma_delta'],style=wx.TE_PROCESS_ENTER)
         SigDel.SetValue(data['corrParam sigma_delta'])
         SigDel.Bind(wx.EVT_TEXT_ENTER, OnSigDel)
         SigDel.Bind(wx.EVT_KILL_FOCUS, OnSigDel)
         MargShapeSizer.Add(SigDel,0,WACV)
-     
+
+        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' OR estimate it as l_delta/ '),0,WACV)
+        LDelDiv = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam l_deltaDivN'],style=wx.TE_PROCESS_ENTER)
+        LDelDiv.SetValue(data['corrParam l_deltaDivN'])
+        LDelDiv.Bind(wx.EVT_TEXT_ENTER, OnLDelDiv)
+        LDelDiv.Bind(wx.EVT_KILL_FOCUS, OnLDelDiv)
+        MargShapeSizer.Add(LDelDiv,0,WACV)
+        
         return MargShapeSizer    
 
 
@@ -2869,7 +2909,7 @@ def UpdateControls(G2frame,data):
             
         MargIterSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)
                   
-        DoIter = wx.CheckBox(G2frame.dataDisplay,-1,label=' do iteration?')
+        DoIter = wx.CheckBox(G2frame.dataDisplay,-1,label=' do iteration? (may cause overfitting)')
         DoIter.Bind(wx.EVT_CHECKBOX, OnDoIter)
         DoIter.SetValue(data['doIter'])
         MargIterSizer.Add(DoIter,0,WACV)  
@@ -2924,6 +2964,8 @@ def UpdateControls(G2frame,data):
     mainSizer.Add(MargAddSizer())
     mainSizer.Add((10,10),0)    
     mainSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Profile Peak-Shape Correction:'),0,WACV)    
+    mainSizer.Add(MargNumBlocksSizer())
+    mainSizer.Add((5,5),0)    
     mainSizer.Add(MargShapeSizer())
     mainSizer.Add((5,5),0)    
     mainSizer.Add(MargIterSizer())
