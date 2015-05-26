@@ -185,17 +185,17 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         l_delta = [config_example.xyFWHM[1][p] for p in hIdList]        
         l_delta = [np.array(l_delta[i])/divN[i] for i in range(nHist)]     
     else:        
-        l_delta = np.array([float(p) for p in l_delta]*nHist)  
-    
+        l_delta = [np.array(float(p)) for p in l_delta]*nHist 
+                
     sigma_delta = Controls['corrParam sigma_delta'].split(',')
     if sigma_delta[0] == 'none':
         divN = Controls['corrParam l_deltaDivN'].split(',')
         divN = [float(p) for p in divN]*nHist
         divN = np.array(divN)[range(nHist)] 
-        sigma_delta = [np.array(l_delta[i])/divN[i] for i in range(nHist)]   
+        sigma_delta = [np.array(l_delta[i])/divN[i] for i in range(nHist)]
     else:        
-        sigma_delta = np.array([float(p) for p in sigma_delta]*nHist)
-        
+        sigma_delta = [np.array(float(p)) for p in sigma_delta]*nHist
+   
 # nBlocks: number of blocks s to use for each Histogram 
     nBlocks = Controls['corrParam num blocks s'].split(',')
     nBlocks = [int(p) for p in nBlocks]*nHist
@@ -443,28 +443,35 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                                 mK[hId][iBlock][i,j] = sd2*np.exp(ld2*(x[i+x0]-x[j+x0])**2)*yp[hId][i+x0-xB]*yp[hId][j+x0-xB]                           
                         x0 += sBlock[hId][iBlock]                
                 else:
-                    
-                    
                     if (sigma_delta[hId].shape==()):
                         sigma_delta[hId] = [sigma_delta[hId]]*len(xL_delta[hId])    
                     
                     xL_delta[hId], l_delta[hId], sigma_delta[hId] = \
                         (list(t) for t in zip(*sorted(zip(xL_delta[hId], l_delta[hId], sigma_delta[hId]))))
-                    
+
                     xL_delta[hId] = np.array(xL_delta[hId])
                     l_delta[hId] = np.array(l_delta[hId])
-                    sigma_delta[hId] = np.array(sigma_delta[hId])
+                    sigma_delta[hId] = np.array(sigma_delta[hId])            
                     
                     ld_func = interp1d(xL_delta[hId], l_delta[hId])
                     ld_func = extrap1d(ld_func)
-                    ld = np.sqrt(2.)*ld_func(x[xB:xF])                  
+                    ld = ld_func(x[xB:xF])       
+                    ld = np.sqrt(2.)*np.array(ld)
                     ld[np.isnan(ld)] = np.mean(l_delta[hId])                    
+                    
+                    p = np.polyfit(x[xB:xF], ld, 3)
+                    p = np.poly1d(p)
+                    ld = p(x[xB:xF])
                     ld2 = [0.5*p**2. for p in ld]
-
+                     
                     sd_func = interp1d(xL_delta[hId], sigma_delta[hId])
                     sd_func = extrap1d(sd_func)
                     sd = sd_func(x[xB:xF])     
                     sd[np.isnan(sd)] = np.mean(sigma_delta[hId])
+                    
+                    p = np.polyfit(x[xB:xF], sd, 3)
+                    p = np.poly1d(p)
+                    sd = p(x[xB:xF])      
                     sd2 = [p**2. for p in sd]   
                     
                     for iBlock in range(nBlocks[hId]):
