@@ -18,12 +18,6 @@ variable is not set, but please do place a docstring here for every used
 config variable explaining what it does. Access these variables using
 :func:`GSASIIpath.GetConfigValue`.
 '''
-
-
-meanFWHM = []
-'Estimated mean FWHM for HIstograms'
-
-
 debug = False
 '''Set to True to turn on debugging mode. This enables use of IPython on 
 exceptions and on calls to :func:`GSASIIpath.IPyBreak`. Calls to

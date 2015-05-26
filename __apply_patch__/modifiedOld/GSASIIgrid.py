@@ -16,7 +16,6 @@ G2LoggedButton, EnumSelector, G2ChoiceButton, SingleFloatDialog, SingleStringDia
 MultiStringDialog, G2MultiChoiceDialog, G2SingleChoiceDialog, G2ColumnIDDialog, ItemSelector, GridFractionEditor
 
 Probably SGMessageBox, SymOpDialog, DisAglDialog, too. 
-
 '''
 import wx
 import wx.grid as wg
@@ -1044,7 +1043,6 @@ class G2SingleChoiceDialog(wx.Dialog):
         self.EndModal(wx.ID_OK)
 
 ################################################################################
-
 class G2ColumnIDDialog(wx.Dialog):
     '''A dialog for matching column data to desired items; some columns may be ignored.
     
@@ -2585,9 +2583,11 @@ def UpdateControls(G2frame,data):
     if 'corrParam num blocks s' not in data:
         data['corrParam num blocks s'] = str(0)
     if 'corrParam FWHMDivN' not in data:
-        data['corrParam FWHMDivN'] = "none"  
+        data['corrParam FWHMDivN'] = "none" 
+        # correlation length l_delta can be calculated as mean(FWHM/FWHMDivN)        
     if 'corrParam l_deltaDivN' not in data:
-        data['corrParam l_deltaDivN'] = "none"             
+        data['corrParam l_deltaDivN'] = "none"       
+        # stdev sigma_delta can be calculated as l_delta/l_deltaDivN      
 #    if 'EstimateKMu' not in data:
     data['EstimateKMu'] = False  
 #    if 'EstimateKBeta' not in data:
@@ -2737,7 +2737,7 @@ def UpdateControls(G2frame,data):
         
 # </ Anton Gagin            
     def MargMultSizer():
-# additional controls in main Controls data tree entry for the multiplicative factor
+# additional controls in main Controls data tree entry: multiplicative factor
         def OnKnotsNumC(event):
             data['corrParam E_mu'] = KnotsNumC.GetValue()
             KnotsNumC.SetValue(data['corrParam E_mu'])
@@ -2779,7 +2779,7 @@ def UpdateControls(G2frame,data):
         return MargMultSizer
         
     def MargAddSizer():
-# additional controls in main Controls data tree entry for the additive factor
+# additional controls in main Controls data tree entry: additive factor
 
         def OnKnotsNumB(event):
             data['corrParam E_beta'] = KnotsNumB.GetValue()
@@ -2823,7 +2823,7 @@ def UpdateControls(G2frame,data):
         return MargAddSizer
 
     def MargNumBlocksSizer():
-# additional controls in main Controls data tree entry for the peak-shape factor
+# additional controls in main Controls data tree entry: number of blocks s
         def OnBlocksNum(event):
             data['corrParam num blocks s'] = BlocksNum.GetValue()
             BlocksNum.SetValue(data['corrParam num blocks s'])
@@ -2840,7 +2840,7 @@ def UpdateControls(G2frame,data):
 
         
     def MargShapeSizer():
-# additional controls in main Controls data tree entry for the peak-shape factor
+# additional controls in main Controls data tree entry: peak-shape factor
         def OnSigDel(event):
             data['corrParam sigma_delta'] = SigDel.GetValue()
             SigDel.SetValue(data['corrParam sigma_delta'])
@@ -2876,7 +2876,7 @@ def UpdateControls(G2frame,data):
         LDel.Bind(wx.EVT_KILL_FOCUS, OnLDel)
         MargShapeSizer.Add(LDel,0,WACV)
         
-        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' OR estimate it as mean(FWHM)/ '),0,WACV)
+        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' OR estimate it as FWHM /'),0,WACV)
         FWHMDiv = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam FWHMDivN'],style=wx.TE_PROCESS_ENTER)
         FWHMDiv.SetValue(data['corrParam FWHMDivN'])
         FWHMDiv.Bind(wx.EVT_TEXT_ENTER, OnFWHMDiv)
@@ -2890,7 +2890,7 @@ def UpdateControls(G2frame,data):
         SigDel.Bind(wx.EVT_KILL_FOCUS, OnSigDel)
         MargShapeSizer.Add(SigDel,0,WACV)
 
-        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' OR estimate it as l_delta/ '),0,WACV)
+        MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' OR estimate it as l_delta /'),0,WACV)
         LDelDiv = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam l_deltaDivN'],style=wx.TE_PROCESS_ENTER)
         LDelDiv.SetValue(data['corrParam l_deltaDivN'])
         LDelDiv.Bind(wx.EVT_TEXT_ENTER, OnLDelDiv)
@@ -2901,7 +2901,7 @@ def UpdateControls(G2frame,data):
 
 
     def MargIterSizer():
-# additional controls in main Controls data tree entry for the peak-shape factor
+# additional controls in main Controls data tree entry: iterative procedure
           
         def OnDoIter(event):
             data['doIter'] = DoIter.GetValue()
@@ -2909,7 +2909,7 @@ def UpdateControls(G2frame,data):
             
         MargIterSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)
                   
-        DoIter = wx.CheckBox(G2frame.dataDisplay,-1,label=' do iteration? (may cause overfitting)')
+        DoIter = wx.CheckBox(G2frame.dataDisplay,-1,label=' Iterative (may cause overfitting)')
         DoIter.Bind(wx.EVT_CHECKBOX, OnDoIter)
         DoIter.SetValue(data['doIter'])
         MargIterSizer.Add(DoIter,0,WACV)  

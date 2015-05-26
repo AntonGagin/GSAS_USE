@@ -1,6 +1,6 @@
 # GSAS_Bayes
-Extension to the Rietveld package GSAS-II (tested with GSAS-II version 0.2.0, revision 1772.)
+Extension to the Rietveld package *GSAS-II* (tested with *GSAS-II* version 0.2.0, revision 1772.) See Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549.
 
-Replace files in GSASII local folder and start GSASII normally (don't forget to make a backup copy of the oficial GSAS files!)
+Place *__apply_patch__* folder in GSASII local folder and run *__apply_patch__ .py*.
 
-In "Controls" menu indicate correction parameters. If several histograms are refined simultaneously, indicate correction parameters, divided by commas, in corresponding order. Do a refinement.
+Start GSASII normally. In "Controls" menu indicate correction parameters. If several histograms are refined simultaneously, indicate correction parameters, divided by commas, in corresponding order. Set 'E_mu', 'E_beta' or 's' to zero, if you do not want to apply corresponding correction. Do a refinement.

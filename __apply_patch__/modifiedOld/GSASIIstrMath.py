@@ -1934,6 +1934,7 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
         badPeak = False
 # </ Anton Gagin            
         fwhm = []
+        xfwhm = []
 #  Anton Gagin  />          
         for iref,refl in enumerate(refDict['RefList']):
             if 'C' in calcControls[hfx+'histType']:
@@ -1962,6 +1963,7 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
                 Wd,fmin,fmax = G2pwd.getWidthsCW(refl[5+im],refl[6+im],refl[7+im],shl)
 # </ Anton Gagin            
                 fwhm.append(2.355*Wd[0]+2.*Wd[1])
+                xfwhm.append(refl[5+im])
 #  Anton Gagin  />  
                 iBeg = np.searchsorted(x,refl[5+im]-fmin)
                 iFin = np.searchsorted(x,refl[5+im]+fmax)
@@ -1978,6 +1980,7 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
                     Wd,fmin,fmax = G2pwd.getWidthsCW(pos2,refl[6+im],refl[7+im],shl)
 # </ Anton Gagin            
                     fwhm.append(2.355*Wd[0]+2.*Wd[1])
+                    xfwhm.append(refl[5+im])
 #  Anton Gagin  />  
                     iBeg = np.searchsorted(x,pos2-fmin)
                     iFin = np.searchsorted(x,pos2+fmax)
@@ -2009,6 +2012,10 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #                        print ' ***Error %d,%d,%d missing from Pawley reflection list ***'%(h,k,l)
                         continue
                 Wd,fmin,fmax = G2pwd.getWidthsTOF(refl[5+im],refl[12+im],refl[13+im],refl[6+im],refl[7+im])
+# </ Anton Gagin            
+                fwhm.append(2.355*Wd[0]+2.*Wd[1])
+                xfwhm.append(refl[5+im])
+#  Anton Gagin  />                 
                 iBeg = np.searchsorted(x,refl[5+im]-fmin)
                 iFin = np.searchsorted(x,refl[5+im]+fmax)
                 if not iBeg+iFin:       #peak below low limit - skip peak
@@ -2022,8 +2029,9 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #        print 'profile calc time: %.3fs'%(time.time()-time0)
     if badPeak:
         print 'ouch #4 bad profile coefficients yield negative peak width; some reflections skipped' 
-# </ Anton Gagin            
-    config_example.meanFWHM[hId] = np.mean(fwhm)
+# </ Anton Gagin  
+    config_example.xyFWHM[0][hId] = xfwhm
+    config_example.xyFWHM[1][hId] = fwhm
 #  Anton Gagin  />     
     
     return yc,yb
@@ -2769,7 +2777,9 @@ def errRefine_opt(values, optCor, HistoPhases,parmDict,varylist,calcControls,paw
                 Z[1::2] *= -1
                 y[xB:xF] = yc[xB:xF]+np.abs(y[xB:xF]-yc[xB:xF])*Z
                 w[xB:xF] = np.where(y[xB:xF]>0.,1./y[xB:xF],1.0)
-            
+#
+# This part was changed -->
+#            
             if (bool(optCor)):            
                 x_cor = x[xB:xF] - optCor['dx_opt'][hId]            
                 yc_func = interp1d(x_cor, yc[xB:xF])
@@ -2778,7 +2788,9 @@ def errRefine_opt(values, optCor, HistoPhases,parmDict,varylist,calcControls,paw
                 yc[xB:xF] = np.multiply(optCor['cc_opt'][hId], yc[xB:xF])
     #            yc[xB:xF] = np.multiply(optCor['cc_opt'][hId], (yc[xB:xF] - yb[xB:xF])) + yb[xB:xF]        
                 yc[xB:xF] = yc[xB:xF] + optCor['bb_opt'][hId]
-            
+#
+#  <--
+#            
             
             yd[xB:xF] = y[xB:xF]-yc[xB:xF]
             W = wtFactor*w
