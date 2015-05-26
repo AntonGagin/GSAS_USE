@@ -1,7 +1,7 @@
 # GSAS_Bayes
 Extension to the Rietveld package *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/pyGSAS)* (tested with *GSAS-II* version 0.2.0, revision 1772.) See Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549.
 
-To apply this patch, place **patchSystErrors** folder in *GSAS-II* local folder and run **\_\_apply_patch\_\_ **.**py**. If everything is OK, you will see 
+To apply this patch, place **patchSystErrors** folder in *GSAS-II* local folder and run **\_\_apply_patch\_\_**.**py**. If everything is OK, you will see 
 
 ```
 ### based on Diff, Match and Patch Library
