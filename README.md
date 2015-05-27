@@ -1,3 +1,6 @@
+---
+output: pdf_document
+---
 # GSAS_Bayes
 Extension to the Rietveld package *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/pyGSAS)* (tested with *GSAS-II* version 0.2.0, revision 1772.) See Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549.
 
@@ -28,6 +31,7 @@ After patch is  completed, start *GSAS-II* normally. In "Controls" menu indicate
 GSAS_Bayes addresses the effects of systematic errors in Rietveld refinements. Relevant errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into structural refinements using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. 
 
 * Multiplicative correction is approximated by a set of $E\_mu$ cubic spline functions $\phi_j^{(\mu)}(x)$: 
+![untitled](https://cloud.githubusercontent.com/assets/8290742/7841783/1d8a771a-046d-11e5-8fcc-87e89a96eb9a.png)
 $$
 \mu(x) = \sum_{j=1}^{E_{\mu}} \left( 1+c_j^{(\mu)}\right) \phi_j^{(\mu)}(x).
 $$
