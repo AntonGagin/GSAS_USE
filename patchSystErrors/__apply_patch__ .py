@@ -9,14 +9,15 @@ if sys.version[0] == '2':
 if sys.version[0] == '3':
     shutil.copy("python3/diff_match_patch.py", "diff_match_patch.py")
 
-subversion = sys.version[2] 
-cmd = '#!/usr/bin/python2.' + str(subversion)+'\n'
-with open("diff_match_patch.py", "r") as infile:
-    dmp=infile.readlines()
-dmp[0] = cmd
-outfile = open('diff_match_patch.py','w')
-outfile.writelines(dmp) 
-outfile.close()
+if sys.version[0] == '2':
+    subversion = sys.version[2] 
+    cmd = '#!/usr/bin/python2.' + str(subversion)+'\n'
+    with open("diff_match_patch.py", "r") as infile:
+        dmp=infile.readlines()
+    dmp[0] = cmd
+    outfile = open('diff_match_patch.py','w')
+    outfile.writelines(dmp) 
+    outfile.close()
    
 from diff_match_patch import diff_match_patch, patch_obj
 
@@ -28,7 +29,7 @@ print '''
 '''
 print "\n--------------------------"
 
-print "This script will patch your current version of GSASII package \n"
+print "This script will patch your current version of the GSAS-II package \n"
 begin = raw_input("Begin [y/n]?") 
 
 if begin=='y':
@@ -42,7 +43,7 @@ if begin=='y':
               
     nFiles = len(fnames)
 
-    print "Copying GSASII files to folder 'originalNew': \n"
+    print "Copying GSASII files to folder 'originalNew':"
     for i in range(nFiles):
         if not os.path.isfile(fnames3[i]):
             print '    ...', fnames[i]
@@ -51,7 +52,7 @@ if begin=='y':
             print "File", fnames3[i], 'already exists! Please make sure it is the original GSASII file you want to patch. \n'
           
 
-
+    print "\nGenerating and applying patch:"
     succeed = [False]*nFiles
     for i in range(nFiles):
         diff_obj = diff_match_patch()
@@ -79,8 +80,9 @@ if begin=='y':
         for i in range(nFiles):
             print '    ...', fnames[i]
             shutil.copy(fnames4[i], fnames0[i])
+        print "\nPatch was applied successfully!"    
     else:
         print "\nSomething went wrong, sorry"
             
             
-end = raw_input("Press return to exit")
+end = raw_input("Press RETURN to exit...")

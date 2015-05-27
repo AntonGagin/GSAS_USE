@@ -773,9 +773,9 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
       
         histNames=G2stIO.GetHistogramNames(GPXfile,['PWDR',])    
         plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, dx_opt, ydiff, ystd, yexp, ycor, yuncor)                   
-        header = '        x        mult         add      dtheta        resid       stdev        yexp        ycor      yuncor'
         
         for i in range(nHist):
+            header = histNames[i]+'''\n        x        mult         add      dtheta        resid       stdev        yexp        ycor      yuncor'''
             printCorFile = ospath.splitext(GPXfile)[0]+'_cor_'+str(i)+'.txt'
             dat = np.array([x[i], cc_opt[i], bb_opt[i], dx_opt[i], ydiff[i], ystd[i], yexp[i], ycor[i], yuncor[i]])        
             np.savetxt(fname=printCorFile, X=dat.T, header=header, fmt='%1.5e')
