@@ -1901,6 +1901,10 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
             kRatio = parmDict[hfx+'I(L2)/I(L1)']
         else:
             wave = parmDict[hfx+'Lam']
+# </ Anton Gagin            
+    fwhm = []
+    xfwhm = []
+#  Anton Gagin  />          
     for phase in Histogram['Reflection Lists']:
         refDict = Histogram['Reflection Lists'][phase]
         if phase not in Phases:     #skips deleted or renamed phases silently!
@@ -1932,10 +1936,6 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #            print 'sf calc time: %.3fs'%(time.time()-time0)
         time0 = time.time()
         badPeak = False
-# </ Anton Gagin            
-        fwhm = []
-        xfwhm = []
-#  Anton Gagin  />          
         for iref,refl in enumerate(refDict['RefList']):
             if 'C' in calcControls[hfx+'histType']:
                 if im:
