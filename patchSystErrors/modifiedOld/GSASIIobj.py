@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 #GSASIIobj - data objects for GSAS-II
 ########### SVN repository information ###################
-# $Date: 2015-03-12 18:09:00 -0400 (Thu, 12 Mar 2015) $
-# $Author: toby $
-# $Revision: 1698 $
+# $Date: 2015-06-02 15:36:58 -0400 (Tue, 02 Jun 2015) $
+
+# $Author: vondreele $
+# $Revision: 1875 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIobj.py $
-# $Id: GSASIIobj.py 1698 2015-03-12 22:09:00Z toby $
+# $Id: GSASIIobj.py 1875 2015-06-02 19:36:58Z vondreele $
 ########### SVN repository information ###################
 
 '''
@@ -356,6 +357,28 @@ SGPolax     Axes for space group polarity. Will be one of
             'xyz'. In the case where axes are arbitrary 
             '111' is used (P 1, and ?).
 ==========  ====================================================
+
+.. _SSGData_table:
+
+.. index::
+   single: Superspace Group Data description
+   single: Data object descriptions; Superspace Group Data
+
+Superspace groups [3+1] are interpreted by :func:`GSASIIspc.SSpcGroup` 
+and the information is placed in a SSGdata object 
+which is a dict with these keys:
+
+.. tabularcolumns:: |l|p{4.5in}|
+
+==========  ====================================================
+  key         explanation
+==========  ====================================================
+SSpGrp      superspace group symbol extension to space group
+            symbol, accidental spaces removed
+SSGCen      4D cell centering vectors [0,0,0,0] at least
+SSGOps      4D symmetry operations as [M,T] so that M*x+T = x'
+==========  ====================================================
+
 
 Atom Records
 ------------
@@ -844,12 +867,12 @@ import GSASIIpath
 import GSASIImath as G2mth
 import numpy as np
 
-GSASIIpath.SetVersionNumber("$Revision: 1698 $")
+GSASIIpath.SetVersionNumber("$Revision: 1875 $")
 
 DefaultControls = {
-    'deriv type':'analytic Hessian',    #default controls
-    'min dM/M':0.0001,'shift factor':1.,'max cyc':3,'F**2':True,
-    'minF/sig':0,
+    'deriv type':'analytic Hessian',
+    'min dM/M':0.0001,'shift factor':1.,'max cyc':3,'F**2':False,
+    'UsrReject':{'minF/sig':0,'MinExt':0.01,'MaxDF/F':100.,'MaxD':500.,'MinD':0.05},
 # </ Anton Gagin
 # default controls for the corrections
     'corrParam E_mu':str(0), 'corrParam k_mu':str(0),
@@ -858,10 +881,13 @@ DefaultControls = {
     'corrParam num blocks s': str(0), 'corrParam FWHMDivN':"none",
     'corrParam l_deltaDivN':"none", 
 # Anton Gagin />   
+
+    'Copy2Next':False,'Reverse Seq':False,
     'Author':'no name',
     'FreePrm1':'Sample humidity (%)',
     'FreePrm2':'Sample voltage (V)',
     'FreePrm3':'Applied load (MN)',
+    'SeqPseudoVars':{},'SeqParFitEqList':[],'ShowCell':False,
     }
 '''Values to be used as defaults for the initial contents of the ``Controls``
 data tree item.
@@ -1150,11 +1176,11 @@ def VarDescr(varname):
         if l[2] == "Scale": # fix up ambigous name
             l[5] = "Phase fraction"
         if l[0] == '*':
-            lbl = 'all'
+            lbl = 'Seq. ref.'
         else:
             lbl = ShortPhaseNames.get(l[0],'? #'+str(l[0]))
         if l[1] == '*':
-            hlbl = 'all'
+            hlbl = 'Seq. ref.'
         else:
             hlbl = ShortHistNames.get(l[1],'? #'+str(l[1]))
         if hlbl[:4] == 'HKLF':
@@ -1283,6 +1309,7 @@ def CompileVarDesc():
         'Ep$' : 'Primary extinction',
         'Es$' : 'Secondary type II extinction',
         'Eg$' : 'Secondary type I extinction',
+        'Flack' : 'Flack parameter',
         #Histogram vars (:h:<var>)
         'Absorption' : 'Absorption coef.',
         'Displace([XY])' : 'Debye-Scherrer sample displacement \\1',
@@ -2012,6 +2039,12 @@ class ExpressionCalcObj(object):
         if not np.isscalar(val):
             val = np.sum(val)
         return val
+        
+class G2Exception(Exception):
+    def __init__(self,msg):
+        self.msg = msg
+    def __str__(self):
+        return repr(self.msg)
 
 
 if __name__ == "__main__":

@@ -6,11 +6,11 @@
 '''
 ########### SVN repository information ###################
 
-# $Date: 2015-03-03 16:01:18 -0500 (Tue, 03 Mar 2015) $
-# $Author: toby $
-# $Revision: 1688 $
+# $Date: 2015-05-14 11:31:16 -0400 (Thu, 14 May 2015) $
+# $Author: vondreele $
+# $Revision: 1852 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIstrMain.py $
-# $Id: GSASIIstrMain.py 1688 2015-03-03 21:01:18Z toby $
+# $Id: GSASIIstrMain.py 1852 2015-05-14 15:31:16Z vondreele $
 ########### SVN repository information ###################
 import sys
 import os
@@ -25,7 +25,7 @@ import numpy.ma as ma
 import numpy.linalg as nl
 import scipy.optimize as so
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1688 $")
+GSASIIpath.SetVersionNumber("$Revision: 1852 $")
 import GSASIIlattice as G2lat
 import GSASIIspc as G2spc
 import GSASIImapvars as G2mv
@@ -42,7 +42,7 @@ acosd = lambda x: 180.*np.arccos(x)/np.pi
 atan2d = lambda y,x: 180.*np.arctan2(y,x)/np.pi
     
 ateln2 = 8.0*math.log(2.0)
-DEBUG = False
+DEBUG = True
 
 def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,varyList,
     calcControls,pawleyLookup,ifPrint,printFile,dlg):
@@ -92,9 +92,11 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         Rvals['Nobs'] = Histograms['Nobs']
         Rvals['Rwp'] = np.sqrt(Rvals['chisq']/Histograms['sumwYo'])*100.      #to %
         Rvals['GOF'] = np.sqrt(Rvals['chisq']/(Histograms['Nobs']-len(varyList)))
-        print >>printFile,' Number of function calls:',result[2]['nfev'],' Number of observations: ',Histograms['Nobs'],' Number of parameters: ',len(varyList)
+        print >>printFile,' Number of function calls:',result[2]['nfev'],   \
+            ' No. of observations: ',Histograms['Nobs'],' No. of parameters: ',len(varyList),   \
+            ' User rejected: ',Histograms['Nrej'],' Sp. gp. extinct: ',Histograms['Next']
         print >>printFile,' Refinement time = %8.3fs, %8.3fs/cycle, for %d cycles'%(runtime,runtime/ncyc,ncyc)
-        print >>printFile,' wR = %7.2f%%, chi**2 = %12.6g, reduced chi**2 = %6.2f'%(Rvals['Rwp'],Rvals['chisq'],Rvals['GOF']**2)
+        print >>printFile,' wR = %7.2f%%, chi**2 = %12.6g, GOF = %6.2f'%(Rvals['Rwp'],Rvals['chisq'],Rvals['GOF'])
         IfOK = True
         try:
             covMatrix = result[1]*Rvals['GOF']**2
@@ -145,13 +147,13 @@ def Refine(GPXfile,dlg):
     restraintDict = G2stIO.GetRestraints(GPXfile)
     Histograms,Phases = G2stIO.GetUsedHistogramsAndPhases(GPXfile)
     if not Phases:
-        print ' *** ERROR - you have no phases! ***'
+        print ' *** ERROR - you have no phases to refine! ***'
         print ' *** Refine aborted ***'
-        raise Exception
+        return False,'No phases'
     if not Histograms:
         print ' *** ERROR - you have no data to refine with! ***'
         print ' *** Refine aborted ***'
-        raise Exception        
+        return False,'No data'
     rigidbodyDict = G2stIO.GetRigidBodies(GPXfile)
     rbIds = rigidbodyDict.get('RBIds',{'Vector':[],'Residue':[]})
     rbVary,rbDict = G2stIO.GetRigidBodyModels(rigidbodyDict,pFile=printFile)
@@ -176,38 +178,45 @@ def Refine(GPXfile,dlg):
     try:
         groups,parmlist = G2mv.GroupConstraints(constrDict)
         G2mv.GenerateConstraints(groups,parmlist,varyList,constrDict,fixedList,parmDict)
+        #print G2mv.VarRemapShow(varyList)
+        #print 'DependentVars',G2mv.GetDependentVars()
+        #print 'IndependentVars',G2mv.GetIndependentVars()
     except:
         print ' *** ERROR - your constraints are internally inconsistent ***'
         #errmsg, warnmsg = G2mv.CheckConstraints(varyList,constrDict,fixedList)
         #print 'Errors',errmsg
         #if warnmsg: print 'Warnings',warnmsg
-        raise Exception(' *** Refine aborted ***')
+        return False,' Constraint error'
 #    print G2mv.VarRemapShow(varyList)
     
     ifPrint = True
     print >>printFile,'\n Refinement results:'
     print >>printFile,135*'-'
-    IfOK,Rvals,result,covMatrix,sig = RefineCore(Controls,Histograms,Phases,restraintDict,
-        rigidbodyDict,parmDict,varyList,calcControls,pawleyLookup,ifPrint,printFile,dlg)
-    sigDict = dict(zip(varyList,sig))
-    newCellDict = G2stMth.GetNewCellParms(parmDict,varyList)
-    newAtomDict = G2stMth.ApplyXYZshifts(parmDict,varyList)
-    covData = {'variables':result[0],'varyList':varyList,'sig':sig,'Rvals':Rvals,
-               'varyListStart':varyListStart,
-               'covMatrix':covMatrix,'title':GPXfile,'newAtomDict':newAtomDict,
-               'newCellDict':newCellDict,'freshCOV':True}
-    # add the uncertainties into the esd dictionary (sigDict)
-    sigDict.update(G2mv.ComputeDepESD(covMatrix,varyList,parmDict))
-    G2mv.PrintIndependentVars(parmDict,varyList,sigDict,pFile=printFile)
-    G2stMth.ApplyRBModels(parmDict,Phases,rigidbodyDict,True)
-    G2stIO.SetRigidBodyModels(parmDict,sigDict,rigidbodyDict,printFile)
-    G2stIO.SetPhaseData(parmDict,sigDict,Phases,rbIds,covData,restraintDict,printFile)
-    G2stIO.SetHistogramPhaseData(parmDict,sigDict,Phases,Histograms,pFile=printFile)
-    G2stIO.SetHistogramData(parmDict,sigDict,Histograms,pFile=printFile)
-    G2stIO.SetUsedHistogramsAndPhases(GPXfile,Histograms,Phases,rigidbodyDict,covData)
-    printFile.close()
-    print ' Refinement results are in file: '+ospath.splitext(GPXfile)[0]+'.lst'
-    print ' ***** Refinement successful *****'
+    try:
+        IfOK,Rvals,result,covMatrix,sig = RefineCore(Controls,Histograms,Phases,restraintDict,
+            rigidbodyDict,parmDict,varyList,calcControls,pawleyLookup,ifPrint,printFile,dlg)
+        sigDict = dict(zip(varyList,sig))
+        newCellDict = G2stMth.GetNewCellParms(parmDict,varyList)
+        newAtomDict = G2stMth.ApplyXYZshifts(parmDict,varyList)
+        covData = {'variables':result[0],'varyList':varyList,'sig':sig,'Rvals':Rvals,
+                   'varyListStart':varyListStart,
+                   'covMatrix':covMatrix,'title':GPXfile,'newAtomDict':newAtomDict,
+                   'newCellDict':newCellDict,'freshCOV':True}
+        # add the uncertainties into the esd dictionary (sigDict)
+        sigDict.update(G2mv.ComputeDepESD(covMatrix,varyList,parmDict))
+        G2mv.PrintIndependentVars(parmDict,varyList,sigDict,pFile=printFile)
+        G2stMth.ApplyRBModels(parmDict,Phases,rigidbodyDict,True)
+        G2stIO.SetRigidBodyModels(parmDict,sigDict,rigidbodyDict,printFile)
+        G2stIO.SetPhaseData(parmDict,sigDict,Phases,rbIds,covData,restraintDict,printFile)
+        G2stIO.SetHistogramPhaseData(parmDict,sigDict,Phases,Histograms,calcControls['FFtables'],pFile=printFile)
+        G2stIO.SetHistogramData(parmDict,sigDict,Histograms,calcControls['FFtables'],pFile=printFile)
+        G2stIO.SetUsedHistogramsAndPhases(GPXfile,Histograms,Phases,rigidbodyDict,covData)
+        printFile.close()
+        print ' Refinement results are in file: '+ospath.splitext(GPXfile)[0]+'.lst'
+        print ' ***** Refinement successful *****'
+    except G2obj.G2Exception,Msg:
+        printFile.close()
+        return False,Msg.msg
     
 #for testing purposes!!!
     if DEBUG:
@@ -216,16 +225,14 @@ def Refine(GPXfile,dlg):
         fl = open('testDeriv.dat','wb')
         cPickle.dump(result[0],fl,1)
         cPickle.dump([Histograms,Phases,restraintDict,rigidbodyDict],fl,1)
-        cPickle.dump([G2mv.dependentParmList,G2mv.arrayList,G2mv.invarrayList,
-            G2mv.indParmList,G2mv.invarrayList],fl,1)
+        cPickle.dump([constrDict,fixedList],fl,1)
         cPickle.dump(parmDict,fl,1)
         cPickle.dump(varyList,fl,1)
         cPickle.dump(calcControls,fl,1)
         cPickle.dump(pawleyLookup,fl,1)
         fl.close()
-
     if dlg:
-        return Rvals['Rwp']
+        return True,Rvals['Rwp']
 
 def SeqRefine(GPXfile,dlg):
     '''Perform a sequential refinement -- cycles through all selected histgrams,
@@ -244,19 +251,24 @@ def SeqRefine(GPXfile,dlg):
     if not Phases:
         print ' *** ERROR - you have no phases to refine! ***'
         print ' *** Refine aborted ***'
-        raise Exception
+        return False,'No phases'
     if not Histograms:
         print ' *** ERROR - you have no data to refine with! ***'
         print ' *** Refine aborted ***'
-        raise Exception
+        return False,'No data'
     rigidbodyDict = G2stIO.GetRigidBodies(GPXfile)
     rbIds = rigidbodyDict.get('RBIds',{'Vector':[],'Residue':[]})
     rbVary,rbDict = G2stIO.GetRigidBodyModels(rigidbodyDict,pFile=printFile)
-    Natoms,atomIndx,phaseVary,phaseDict,pawleyLookup,FFtables,BLtables,maxSSwave = G2stIO.GetPhaseData(Phases,restraintDict,rbIds,False,printFile)
+    Natoms,atomIndx,phaseVary,phaseDict,pawleyLookup,FFtables,BLtables,maxSSwave = G2stIO.GetPhaseData(Phases,restraintDict,rbIds,False,printFile,seqRef=True)
     for item in phaseVary:
         if '::A0' in item:
             print '**** WARNING - lattice parameters should not be refined in a sequential refinement ****'
             print '****           instead use the Dij parameters for each powder histogram            ****'
+            return False,'Lattice parameter refinement error - see console message'
+        if '::C(' in item:
+            print '**** WARNING - phase texture parameters should not be refined in a sequential refinement ****'
+            print '****           instead use the C(L,N) parameters for each powder histogram               ****'
+            return False,'Phase texture refinement error - see console message'
     if 'Seq Data' in Controls:
         histNames = Controls['Seq Data']
     else:
@@ -317,7 +329,7 @@ def SeqRefine(GPXfile,dlg):
             #errmsg, warnmsg = G2mv.CheckConstraints(varyList,constrDict,fixedList)
             #print 'Errors',errmsg
             #if warnmsg: print 'Warnings',warnmsg
-            raise Exception(' *** Refine aborted ***')
+            return False,' Constraint error'
         #print G2mv.VarRemapShow(varyList)
         if not ihst:
             # first histogram to refine against
@@ -366,57 +378,63 @@ def SeqRefine(GPXfile,dlg):
             else:
                 line += 'none'
             print line
-            raise Exception
+            return False,line
         
         ifPrint = False
         print >>printFile,'\n Refinement results for histogram: v'+histogram
         print >>printFile,135*'-'
-        IfOK,Rvals,result,covMatrix,sig = RefineCore(Controls,Histo,Phases,restraintDict,
-            rigidbodyDict,parmDict,varyList,calcControls,pawleyLookup,ifPrint,printFile,dlg)
-
-        print '  wR = %7.2f%%, chi**2 = %12.6g, reduced chi**2 = %6.2f, last delta chi = %.4f'%(
-            Rvals['Rwp'],Rvals['chisq'],Rvals['GOF']**2,Rvals['DelChi2'])
-        # add the uncertainties into the esd dictionary (sigDict)
-        sigDict = dict(zip(varyList,sig))
-        # the uncertainties for dependent constrained parms into the esd dict
-        sigDict.update(G2mv.ComputeDepESD(covMatrix,varyList,parmDict))
-
-        # a dict with values & esds for dependent (constrained) parameters
-        depParmDict = {i:(parmDict[i],sigDict[i]) for i in varyListStart
-                       if i not in varyList}
-        newCellDict = copy.deepcopy(G2stMth.GetNewCellParms(parmDict,varyList))
-        newAtomDict = copy.deepcopy(G2stMth.ApplyXYZshifts(parmDict,varyList))
-        histRefData = {
-            'variables':result[0],'varyList':varyList,'sig':sig,'Rvals':Rvals,
-            'varyListStart':varyListStart,
-            'covMatrix':covMatrix,'title':histogram,'newAtomDict':newAtomDict,
-            'newCellDict':newCellDict,'depParmDict':depParmDict,
-            'constraintInfo':constraintInfo,
-            'parmDict':parmDict}
-        SeqResult[histogram] = histRefData
-        G2stMth.ApplyRBModels(parmDict,Phases,rigidbodyDict,True)
-#        G2stIO.SetRigidBodyModels(parmDict,sigDict,rigidbodyDict,printFile)
-        G2stIO.SetHistogramPhaseData(parmDict,sigDict,Phases,Histo,ifPrint,printFile)
-        G2stIO.SetHistogramData(parmDict,sigDict,Histo,ifPrint,printFile)
-        G2stIO.SetUsedHistogramsAndPhases(GPXfile,Histo,Phases,rigidbodyDict,histRefData,makeBack)
-        makeBack = False
-        NewparmDict = {}
-        # make dict of varied parameters in current histogram, renamed to
-        # next histogram, for use in next refinement. 
-        if Controls['Copy2Next'] and ihst < len(histNames)-1:
-            hId = Histo[histogram]['hId'] # current histogram
-            nexthId = Histograms[histNames[ihst+1]]['hId']
-            for parm in set(list(varyList)+list(varyListStart)):
-                items = parm.split(':')
-                if len(items) < 3: continue
-                if str(hId) in items[1]:
-                    items[1] = str(nexthId)
-                    newparm = ':'.join(items)
-                    NewparmDict[newparm] = parmDict[parm]
+        try:
+            IfOK,Rvals,result,covMatrix,sig = RefineCore(Controls,Histo,Phases,restraintDict,
+                rigidbodyDict,parmDict,varyList,calcControls,pawleyLookup,ifPrint,printFile,dlg)
+    
+            print '  wR = %7.2f%%, chi**2 = %12.6g, reduced chi**2 = %6.2f, last delta chi = %.4f'%(
+                Rvals['Rwp'],Rvals['chisq'],Rvals['GOF']**2,Rvals['DelChi2'])
+            # add the uncertainties into the esd dictionary (sigDict)
+            sigDict = dict(zip(varyList,sig))
+            # the uncertainties for dependent constrained parms into the esd dict
+            sigDict.update(G2mv.ComputeDepESD(covMatrix,varyList,parmDict))
+    
+            # a dict with values & esds for dependent (constrained) parameters
+            depParmDict = {i:(parmDict[i],sigDict[i]) for i in varyListStart
+                           if i not in varyList}
+            newCellDict = copy.deepcopy(G2stMth.GetNewCellParms(parmDict,varyList))
+            newAtomDict = copy.deepcopy(G2stMth.ApplyXYZshifts(parmDict,varyList))
+            histRefData = {
+                'variables':result[0],'varyList':varyList,'sig':sig,'Rvals':Rvals,
+                'varyListStart':varyListStart,
+                'covMatrix':covMatrix,'title':histogram,'newAtomDict':newAtomDict,
+                'newCellDict':newCellDict,'depParmDict':depParmDict,
+                'constraintInfo':constraintInfo,
+                'parmDict':parmDict}
+            SeqResult[histogram] = histRefData
+            G2stMth.ApplyRBModels(parmDict,Phases,rigidbodyDict,True)
+    #        G2stIO.SetRigidBodyModels(parmDict,sigDict,rigidbodyDict,printFile)
+            G2stIO.SetHistogramPhaseData(parmDict,sigDict,Phases,Histo,None,ifPrint,printFile)
+            G2stIO.SetHistogramData(parmDict,sigDict,Histo,None,ifPrint,printFile)
+            G2stIO.SetUsedHistogramsAndPhases(GPXfile,Histo,Phases,rigidbodyDict,histRefData,makeBack)
+            makeBack = False
+            NewparmDict = {}
+            # make dict of varied parameters in current histogram, renamed to
+            # next histogram, for use in next refinement. 
+            if Controls['Copy2Next'] and ihst < len(histNames)-1:
+                hId = Histo[histogram]['hId'] # current histogram
+                nexthId = Histograms[histNames[ihst+1]]['hId']
+                for parm in set(list(varyList)+list(varyListStart)):
+                    items = parm.split(':')
+                    if len(items) < 3: continue
+                    if str(hId) in items[1]:
+                        items[1] = str(nexthId)
+                        newparm = ':'.join(items)
+                        NewparmDict[newparm] = parmDict[parm]
+        except G2obj.G2Exception,Msg:
+            printFile.close()
+            print ' ***** Refinement aborted *****'
+            return False,Msg.msg
     G2stIO.SetSeqResult(GPXfile,Histograms,SeqResult)
     printFile.close()
     print ' Sequential refinement results are in file: '+ospath.splitext(GPXfile)[0]+'.lst'
     print ' ***** Sequential refinement successful *****'
+    return True,'Success'
 
 def RetDistAngle(DisAglCtls,DisAglData):
     '''Compute and return distances and angles

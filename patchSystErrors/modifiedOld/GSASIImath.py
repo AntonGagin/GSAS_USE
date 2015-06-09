@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #GSASIImath - major mathematics routines
 ########### SVN repository information ###################
-# $Date: 2015-02-28 19:24:48 -0500 (Sat, 28 Feb 2015) $
+# $Date: 2015-05-13 15:45:07 -0400 (Wed, 13 May 2015) $
 # $Author: vondreele $
-# $Revision: 1683 $
+# $Revision: 1845 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIImath.py $
-# $Id: GSASIImath.py 1683 2015-03-01 00:24:48Z vondreele $
+# $Id: GSASIImath.py 1845 2015-05-13 19:45:07Z vondreele $
 ########### SVN repository information ###################
 '''
 *GSASIImath: computation module*
@@ -26,12 +26,13 @@ import time
 import math
 import copy
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1683 $")
+GSASIIpath.SetVersionNumber("$Revision: 1845 $")
 import GSASIIElem as G2el
 import GSASIIlattice as G2lat
 import GSASIIspc as G2spc
 import GSASIIpwd as G2pwd
 import numpy.fft as fft
+import scipy.optimize as so
 import pypowder as pyd
 
 sind = lambda x: np.sin(x*np.pi/180.)
@@ -41,7 +42,6 @@ asind = lambda x: 180.*np.arcsin(x)/np.pi
 acosd = lambda x: 180.*np.arccos(x)/np.pi
 atand = lambda x: 180.*np.arctan(x)/np.pi
 atan2d = lambda y,x: 180.*np.arctan2(y,x)/np.pi
-
 twopi = 2.0*np.pi
 twopisq = 2.0*np.pi**2
 
@@ -1838,7 +1838,176 @@ def ValEsd(value,esd=0,nTZ=False):
     if valoff != 0:
         out += ("e{:d}").format(valoff) # add an exponent, when needed
     return out
+    
+################################################################################
+##### Texture fitting stuff
+################################################################################
 
+def FitTexture(General,Gangls,refData,keyList,pgbar):
+    import pytexture as ptx
+    ptx.pyqlmninit()            #initialize fortran arrays for spherical harmonics
+    
+    def printSpHarm(textureData,SHtextureSig):
+        print '\n Spherical harmonics texture: Order:' + str(textureData['Order'])
+        names = ['omega','chi','phi']
+        namstr = '  names :'
+        ptstr =  '  values:'
+        sigstr = '  esds  :'
+        for name in names:
+            namstr += '%12s'%('Sample '+name)
+            ptstr += '%12.3f'%(textureData['Sample '+name][1])
+            if 'Sample '+name in SHtextureSig:
+                sigstr += '%12.3f'%(SHtextureSig['Sample '+name])
+            else:
+                sigstr += 12*' '
+        print namstr
+        print ptstr
+        print sigstr
+        print '\n Texture coefficients:'
+        SHcoeff = textureData['SH Coeff'][1]
+        SHkeys = SHcoeff.keys()
+        nCoeff = len(SHcoeff)
+        nBlock = nCoeff/10+1
+        iBeg = 0
+        iFin = min(iBeg+10,nCoeff)
+        for block in range(nBlock):
+            namstr = '  names :'
+            ptstr =  '  values:'
+            sigstr = '  esds  :'
+            for name in SHkeys[iBeg:iFin]:
+                if 'C' in name:
+                    namstr += '%12s'%(name)
+                    ptstr += '%12.3f'%(SHcoeff[name])
+                    if name in SHtextureSig:
+                        sigstr += '%12.3f'%(SHtextureSig[name])
+                    else:
+                        sigstr += 12*' '
+            print namstr
+            print ptstr
+            print sigstr
+            iBeg += 10
+            iFin = min(iBeg+10,nCoeff)
+            
+    def Dict2Values(parmdict, varylist):
+        '''Use before call to leastsq to setup list of values for the parameters 
+        in parmdict, as selected by key in varylist'''
+        return [parmdict[key] for key in varylist] 
+        
+    def Values2Dict(parmdict, varylist, values):
+        ''' Use after call to leastsq to update the parameter dictionary with 
+        values corresponding to keys in varylist'''
+        parmdict.update(zip(varylist,values))
+        
+    def errSpHarm(values,SGData,cell,Gangls,shModel,refData,parmDict,varyList,pgbar):
+        parmDict.update(zip(varyList,values))
+        Mat = np.empty(0)
+        sumObs = 0
+        Sangls = [parmDict['Sample '+'omega'],parmDict['Sample '+'chi'],parmDict['Sample '+'phi']]
+        for hist in Gangls.keys():
+            Refs = refData[hist]
+            Refs[:,5] = np.where(Refs[:,5]>0.,Refs[:,5],0.)
+            wt = 1./np.sqrt(np.max(Refs[:,4],.25))
+#            wt = 1./np.max(Refs[:,4],.25)
+            sumObs += np.sum(wt*Refs[:,5])
+            Refs[:,6] = 1.
+            H = Refs[:,:3]
+            phi,beta = G2lat.CrsAng(H,cell,SGData)
+            psi,gam,x,x = G2lat.SamAng(Refs[:,3]/2.,Gangls[hist],Sangls,False) #assume not Bragg-Brentano!
+            for item in parmDict:
+                if 'C' in item:
+                    L,M,N = eval(item.strip('C'))
+                    Kcl = G2lat.GetKcl(L,N,SGData['SGLaue'],phi,beta)
+                    Ksl,x,x = G2lat.GetKsl(L,M,shModel,psi,gam)
+                    Lnorm = G2lat.Lnorm(L)
+                    Refs[:,6] += parmDict[item]*Lnorm*Kcl*Ksl
+            mat = wt*(Refs[:,5]-Refs[:,6])
+            Mat = np.concatenate((Mat,mat))
+        sumD = np.sum(np.abs(Mat))
+        R = min(100.,100.*sumD/sumObs)
+        pgbar.Update(R,newmsg='Residual = %5.2f'%(R))
+        print ' Residual: %.3f%%'%(R)
+        return Mat
+        
+    def dervSpHarm(values,SGData,cell,Gangls,shModel,refData,parmDict,varyList,pgbar):
+        Mat = np.empty(0)
+        Sangls = [parmDict['Sample omega'],parmDict['Sample chi'],parmDict['Sample phi']]
+        for hist in Gangls.keys():
+            mat = np.zeros((len(varyList),len(refData[hist])))
+            Refs = refData[hist]
+            H = Refs[:,:3]
+            wt = 1./np.sqrt(np.max(Refs[:,4],.25))
+#            wt = 1./np.max(Refs[:,4],.25)
+            phi,beta = G2lat.CrsAng(H,cell,SGData)
+            psi,gam,dPdA,dGdA = G2lat.SamAng(Refs[:,3]/2.,Gangls[hist],Sangls,False) #assume not Bragg-Brentano!
+            for j,item in enumerate(varyList):
+                if 'C' in item:
+                    L,M,N = eval(item.strip('C'))
+                    Kcl = G2lat.GetKcl(L,N,SGData['SGLaue'],phi,beta)
+                    Ksl,dKdp,dKdg = G2lat.GetKsl(L,M,shModel,psi,gam)
+                    Lnorm = G2lat.Lnorm(L)
+                    mat[j] = -wt*Lnorm*Kcl*Ksl
+                    for k,itema in enumerate(['Sample omega','Sample chi','Sample phi']):
+                        try:
+                            l = varyList.index(itema)
+                            mat[l] -= parmDict[item]*wt*Lnorm*Kcl*(dKdp*dPdA[k]+dKdg*dGdA[k])
+                        except ValueError:
+                            pass
+            if len(Mat):
+                Mat = np.concatenate((Mat,mat.T))
+            else:
+                Mat = mat.T
+        print 'deriv'
+        return Mat
+
+    print ' Fit texture for '+General['Name']
+    SGData = General['SGData']
+    cell = General['Cell'][1:7]
+    Texture = General['SH Texture']
+    if not Texture['Order']:
+        return 'No spherical harmonics coefficients'
+    varyList = []
+    parmDict = copy.copy(Texture['SH Coeff'][1])
+    for item in ['Sample omega','Sample chi','Sample phi']:
+        parmDict[item] = Texture[item][1]
+        if Texture[item][0]:
+            varyList.append(item)
+    if Texture['SH Coeff'][0]:
+        varyList += Texture['SH Coeff'][1].keys()
+    while True:
+        begin = time.time()
+        values =  np.array(Dict2Values(parmDict, varyList))
+        result = so.leastsq(errSpHarm,values,Dfun=dervSpHarm,full_output=True,ftol=1.e-6,
+            args=(SGData,cell,Gangls,Texture['Model'],refData,parmDict,varyList,pgbar))
+        ncyc = int(result[2]['nfev']/2)
+        if ncyc:
+            runtime = time.time()-begin    
+            chisq = np.sum(result[2]['fvec']**2)
+            Values2Dict(parmDict, varyList, result[0])
+            GOF = chisq/(len(result[2]['fvec'])-len(varyList))       #reduced chi^2
+            print 'Number of function calls:',result[2]['nfev'],' Number of observations: ',len(result[2]['fvec']),' Number of parameters: ',len(varyList)
+            print 'refinement time = %8.3fs, %8.3fs/cycle'%(runtime,runtime/ncyc)
+            try:
+                sig = np.sqrt(np.diag(result[1])*GOF)
+                if np.any(np.isnan(sig)):
+                    print '*** Least squares aborted - some invalid esds possible ***'
+                break                   #refinement succeeded - finish up!
+            except ValueError:          #result[1] is None on singular matrix
+                print '**** Refinement failed - singular matrix ****'
+                return None
+        else:
+            break
+    
+    if ncyc:
+        for parm in parmDict:
+            if 'C' in parm:
+                Texture['SH Coeff'][1][parm] = parmDict[parm]
+            else:
+                Texture[parm][1] = parmDict[parm]  
+        sigDict = dict(zip(varyList,sig))
+        printSpHarm(Texture,sigDict)
+        
+    return None
+    
 ################################################################################
 ##### Fourier & charge flip stuff
 ################################################################################
@@ -2012,10 +2181,10 @@ def FourierMap(data,reflDict):
             for i,hkl in enumerate(Uniq):        #uses uniq
                 hkl = np.asarray(hkl,dtype='i')
                 dp = 360.*Phi[i]                #and phi
-                a = cosd(ph+dp)
-                b = sind(ph+dp)
-                phasep = complex(a,b)
-                phasem = complex(a,-b)
+                a = cosd(ph)
+                b = sind(ph)
+                phasep = complex(a,b)+dp
+                phasem = complex(a,-b)-dp
                 if 'Fobs' in mapData['MapType']:
                     F = np.where(Fosq>0.,np.sqrt(Fosq),0.)
                     h,k,l = hkl+Hmax

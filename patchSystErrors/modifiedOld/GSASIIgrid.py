@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #GSASIIgrid - data display routines
 ########### SVN repository information ###################
-# $Date: 2015-03-13 16:46:05 -0400 (Fri, 13 Mar 2015) $
+# $Date: 2015-06-04 14:49:58 -0400 (Thu, 04 Jun 2015) $
 # $Author: vondreele $
-# $Revision: 1699 $
+# $Revision: 1878 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIgrid.py $
-# $Id: GSASIIgrid.py 1699 2015-03-13 20:46:05Z vondreele $
+# $Id: GSASIIgrid.py 1878 2015-06-04 18:49:58Z vondreele $
 ########### SVN repository information ###################
 '''
 *GSASIIgrid: Basic GUI routines*
@@ -19,8 +19,8 @@ Probably SGMessageBox, SymOpDialog, DisAglDialog, too.
 '''
 import wx
 import wx.grid as wg
-import wx.wizard as wz
-import wx.aui
+#import wx.wizard as wz
+#import wx.aui
 import wx.lib.scrolledpanel as wxscroll
 import time
 import copy
@@ -31,7 +31,7 @@ import numpy as np
 import numpy.ma as ma
 import scipy.optimize as so
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1699 $")
+GSASIIpath.SetVersionNumber("$Revision: 1878 $")
 import GSASIImath as G2mth
 import GSASIIIO as G2IO
 import GSASIIstrIO as G2stIO
@@ -65,8 +65,8 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 ] = [wx.NewId() for item in range(17)]
 
 [ wxID_PWDRADD, wxID_HKLFADD, wxID_PWDANALYSIS, wxID_PWDCOPY, wxID_PLOTCTRLCOPY, 
-    wxID_DATADELETE,
-] = [wx.NewId() for item in range(6)]
+    wxID_DATADELETE,wxID_DATACOPY,wxID_DATACOPYFLAGS,wxID_DATASELCOPY,
+] = [wx.NewId() for item in range(9)]
 
 [ wxID_ATOMSEDITADD, wxID_ATOMSEDITINSERT, wxID_ATOMSEDITDELETE, wxID_ATOMSREFINE, 
     wxID_ATOMSMODIFY, wxID_ATOMSTRANSFORM, wxID_ATOMSVIEWADD, wxID_ATOMVIEWINSERT,
@@ -106,7 +106,8 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 
 [ wxID_BACKCOPY,wxID_LIMITCOPY, wxID_SAMPLECOPY, wxID_SAMPLECOPYSOME, wxID_BACKFLAGCOPY, wxID_SAMPLEFLAGCOPY,
     wxID_SAMPLESAVE, wxID_SAMPLELOAD,wxID_ADDEXCLREGION,wxID_SETSCALE,wxID_SAMPLE1VAL,wxID_ALLSAMPLELOAD,
-] = [wx.NewId() for item in range(12)]
+    wxID_PEAKSMOVE,
+] = [wx.NewId() for item in range(13)]
 
 [ wxID_INSTPRMRESET,wxID_CHANGEWAVETYPE,wxID_INSTCOPY, wxID_INSTFLAGCOPY, wxID_INSTLOAD,
     wxID_INSTSAVE, wxID_INST1VAL, wxID_INSTCALIB,
@@ -117,7 +118,8 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 ] = [wx.NewId() for item in range(8)]
 
 [  wxID_INDXRELOAD, wxID_INDEXPEAKS, wxID_REFINECELL, wxID_COPYCELL, wxID_MAKENEWPHASE,
-] = [wx.NewId() for item in range(5)]
+    wxID_EXPORTCELLS,
+] = [wx.NewId() for item in range(6)]
 
 [ wxID_CONSTRAINTADD,wxID_EQUIVADD,wxID_HOLDADD,wxID_FUNCTADD,
   wxID_CONSPHASE, wxID_CONSHIST, wxID_CONSHAP, wxID_CONSGLOBAL,
@@ -133,17 +135,17 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 ] = [wx.NewId() for item in range(10)]
 
 [ wxID_RENAMESEQSEL,wxID_SAVESEQSEL,wxID_SAVESEQSELCSV,wxID_SAVESEQCSV,wxID_PLOTSEQSEL,
-  wxID_ORGSEQSEL,wxADDSEQVAR,wxDELSEQVAR,wxEDITSEQVAR,wxCOPYPARFIT,
+  wxID_ORGSEQSEL,wxADDSEQVAR,wxDELSEQVAR,wxEDITSEQVAR,wxCOPYPARFIT,wxID_AVESEQSEL,
   wxADDPARFIT,wxDELPARFIT,wxEDITPARFIT,wxDOPARFIT,
-] = [wx.NewId() for item in range(14)]
+] = [wx.NewId() for item in range(15)]
 
 [ wxID_MODELCOPY,wxID_MODELFIT,wxID_MODELADD,wxID_ELEMENTADD,wxID_ELEMENTDELETE,
     wxID_ADDSUBSTANCE,wxID_LOADSUBSTANCE,wxID_DELETESUBSTANCE,wxID_COPYSUBSTANCE,
     wxID_MODELUNDO,wxID_MODELFITALL,wxID_MODELCOPYFLAGS,
 ] = [wx.NewId() for item in range(12)]
 
-[ wxID_SELECTPHASE,wxID_PWDHKLPLOT,wxID_PWD3DHKLPLOT,
-] = [wx.NewId() for item in range(3)]
+[ wxID_SELECTPHASE,wxID_PWDHKLPLOT,wxID_PWD3DHKLPLOT,wxID_3DALLHKLPLOT,
+] = [wx.NewId() for item in range(4)]
 
 [ wxID_PDFCOPYCONTROLS, wxID_PDFSAVECONTROLS, wxID_PDFLOADCONTROLS, 
     wxID_PDFCOMPUTE, wxID_PDFCOMPUTEALL, wxID_PDFADDELEMENT, wxID_PDFDELELEMENT,
@@ -153,6 +155,24 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 ] = [wx.NewId() for item in range(4)]
 
 VERY_LIGHT_GREY = wx.Colour(235,235,235)
+
+# Aliases for Classes/Functions moved to GSASIIctrls, all should be tracked down but leaving as a reminder
+#SingleFloatDialog = G2G.SingleFloatDialog
+#SingleStringDialog = G2G.SingleStringDialog
+#MultiStringDialog = G2G.MultiStringDialog
+#G2ColumnIDDialog = G2G.G2ColumnIDDialog
+#ItemSelector = G2G.ItemSelector
+#HorizontalLine = G2G.HorizontalLine
+#G2LoggedButton = G2G.G2LoggedButton
+#EnumSelector = G2G.EnumSelector
+#G2ChoiceButton = G2G.G2ChoiceButton
+#GSGrid = G2G.GSGrid
+#Table = G2G.Table
+#GridFractionEditor = G2G.GridFractionEditor
+#GSNoteBook = G2G.GSNoteBook
+
+# Should SGMessageBox, SymOpDialog, DisAglDialog be moved? 
+
 ################################################################################
 #### GSAS-II class definitions
 ################################################################################
@@ -203,157 +223,6 @@ class SGMessageBox(wx.Dialog):
         '''
         self.ShowModal()
         return
-        
-        
-
-class G2LoggedButton(wx.Button):
-    '''A version of wx.Button that creates logging events. Bindings are saved
-    in the object, and are looked up rather than directly set with a bind.
-    An index to these buttons is saved as log.ButtonBindingLookup
-    :param wx.Panel parent: parent widget
-    :param int id: Id for button
-    :param str label: label for button
-    :param str locationcode: a label used internally to uniquely indentify the button
-    :param function handler: a routine to call when the button is pressed
-    '''
-    def __init__(self,parent,id=wx.ID_ANY,label='',locationcode='',
-                 handler=None,*args,**kwargs):
-        super(self.__class__,self).__init__(parent,id,label,*args,**kwargs)
-        self.label = label
-        self.handler = handler
-        self.locationcode = locationcode
-        key = locationcode + '+' + label # hash code to find button
-        self.Bind(wx.EVT_BUTTON,self.onPress)
-        log.ButtonBindingLookup[key] = self
-    def onPress(self,event):
-        'create log event and call handler'
-        log.MakeButtonLog(self.locationcode,self.label)
-        self.handler(event)
-        
-################################################################################
-################################################################################
-class EnumSelector(wx.ComboBox):
-    '''A customized :class:`wxpython.ComboBox` that selects items from a list
-    of choices, but sets a dict (list) entry to the corresponding
-    entry from the input list of values.
-
-    :param wx.Panel parent: the parent to the :class:`~wxpython.ComboBox` (usually a
-      frame or panel)
-    :param dict dct: a dict (or list) to contain the value set
-      for the :class:`~wxpython.ComboBox`.
-    :param item: the dict key (or list index) where ``dct[item]`` will 
-      be set to the value selected in the :class:`~wxpython.ComboBox`. Also, dct[item]
-      contains the starting value shown in the widget. If the value
-      does not match an entry in :data:`values`, the first value
-      in :data:`choices` is used as the default, but ``dct[item]`` is
-      not changed.    
-    :param list choices: a list of choices to be displayed to the
-      user such as
-      ::
-      
-      ["default","option 1","option 2",]
-
-      Note that these options will correspond to the entries in 
-      :data:`values` (if specified) item by item. 
-    :param list values: a list of values that correspond to
-      the options in :data:`choices`, such as
-      ::
-      
-      [0,1,2]
-      
-      The default for :data:`values` is to use the same list as
-      specified for :data:`choices`.
-    :param (other): additional keyword arguments accepted by
-      :class:`~wxpython.ComboBox` can be specified.
-    '''
-    def __init__(self,parent,dct,item,choices,values=None,**kw):
-        if values is None:
-            values = choices
-        if dct[item] in values:
-            i = values.index(dct[item])
-        else:
-            i = 0
-        startval = choices[i]
-        wx.ComboBox.__init__(self,parent,wx.ID_ANY,startval,
-                             choices = choices,
-                             style=wx.CB_DROPDOWN|wx.CB_READONLY,
-                             **kw)
-        self.choices = choices
-        self.values = values
-        self.dct = dct
-        self.item = item
-        self.Bind(wx.EVT_COMBOBOX, self.onSelection)
-    def onSelection(self,event):
-        # respond to a selection by setting the enum value in the CIF dictionary
-        if self.GetValue() in self.choices: # should always be true!
-            self.dct[self.item] = self.values[self.choices.index(self.GetValue())]
-        else:
-            self.dct[self.item] = self.values[0] # unknown
-
-################################################################################
-################################################################################
-class G2ChoiceButton(wx.Choice):
-    '''A customized version of a wx.Choice that automatically initializes
-    the control to match a supplied value and saves the choice directly
-    into an array or list. Optionally a function can be called each time a
-    choice is selected. The widget can be used with an array item that is set to 
-    to the choice by number (``indLoc[indKey]``) or by string value
-    (``strLoc[strKey]``) or both. The initial value is taken from ``indLoc[indKey]``
-    if not None or ``strLoc[strKey]`` if not None. 
-
-    :param wx.Panel parent: name of panel or frame that will be
-      the parent to the widget. Can be None.
-    :param list choiceList: a list or tuple of choices to offer the user.
-    :param dict/list indLoc: a dict or list with the initial value to be
-      placed in the Choice button. If this is None, this is ignored. 
-    :param int/str indKey: the dict key or the list index for the value to be
-      edited by the Choice button. If indLoc is not None then this
-      must be specified and the ``indLoc[indKey]`` will be set. If the value
-      for ``indLoc[indKey]`` is not None, it should be an integer in
-      range(len(choiceList)). The Choice button will be initialized to the
-      choice corresponding to the value in this element if not None.
-    :param dict/list strLoc: a dict or list with the string value corresponding to
-      indLoc/indKey. Default (None) means that this is not used. 
-    :param int/str strKey: the dict key or the list index for the string value 
-      The ``strLoc[strKey]`` element must exist or strLoc must be None (default).
-    :param function onChoice: name of a function to call when the choice is made.
-    '''
-    def __init__(self,parent,choiceList,indLoc=None,indKey=None,strLoc=None,strKey=None,
-                 onChoice=None,**kwargs):
-        wx.Choice.__init__(self,parent,choices=choiceList,id=wx.ID_ANY,**kwargs)
-        self.choiceList = choiceList
-        self.indLoc = indLoc
-        self.indKey = indKey
-        self.strLoc = strLoc
-        self.strKey = strKey
-        self.onChoice = None
-        self.SetSelection(wx.NOT_FOUND)
-        if self.indLoc is not None and self.indLoc.get(self.indKey) is not None:
-            self.SetSelection(self.indLoc[self.indKey])
-            if self.strLoc is not None:
-                self.strLoc[self.strKey] = self.GetStringSelection()
-                log.LogVarChange(self.strLoc,self.strKey)
-        elif self.strLoc is not None and self.strLoc.get(self.strKey) is not None:
-            try:
-                self.SetSelection(choiceList.index(self.strLoc[self.strKey]))
-                if self.indLoc is not None:
-                    self.indLoc[self.indKey] = self.GetSelection()
-                    log.LogVarChange(self.indLoc,self.indKey)
-            except ValueError:
-                pass
-        self.Bind(wx.EVT_CHOICE, self._OnChoice)
-        #if self.strLoc is not None: # make sure strLoc gets initialized
-        #    self._OnChoice(None) # note that onChoice will not be called
-        self.onChoice = onChoice
-    def _OnChoice(self,event):
-        if self.indLoc is not None:
-            self.indLoc[self.indKey] = self.GetSelection()
-            log.LogVarChange(self.indLoc,self.indKey)
-        if self.strLoc is not None:
-            self.strLoc[self.strKey] = self.GetStringSelection()
-            log.LogVarChange(self.strLoc,self.strKey)
-        if self.onChoice:
-            self.onChoice()
 
 ################################################################################
 class SymOpDialog(wx.Dialog):
@@ -372,20 +241,17 @@ class SymOpDialog(wx.Dialog):
             choice = ['No','Yes']
             self.force = wx.RadioBox(panel,-1,'Force to unit cell?',choices=choice)
             self.force.Bind(wx.EVT_RADIOBOX, self.OnOpSelect)
-            mainSizer.Add(self.force,0,WACV)
-        mainSizer.Add((5,5),0)
-        if SGData['SGInv']:
-            choice = ['No','Yes']
-            self.inv = wx.RadioBox(panel,-1,'Choose inversion?',choices=choice)
-            self.inv.Bind(wx.EVT_RADIOBOX, self.OnOpSelect)
-            mainSizer.Add(self.inv,0,WACV)
-        mainSizer.Add((5,5),0)
+            mainSizer.Add(self.force,0,WACV|wx.TOP,5)
+#        if SGData['SGInv']:
+        choice = ['No','Yes']
+        self.inv = wx.RadioBox(panel,-1,'Choose inversion?',choices=choice)
+        self.inv.Bind(wx.EVT_RADIOBOX, self.OnOpSelect)
+        mainSizer.Add(self.inv,0,WACV)
         if SGData['SGLatt'] != 'P':
             LattOp = G2spc.Latt2text(SGData['SGLatt']).split(';')
             self.latt = wx.RadioBox(panel,-1,'Choose cell centering?',choices=LattOp)
             self.latt.Bind(wx.EVT_RADIOBOX, self.OnOpSelect)
             mainSizer.Add(self.latt,0,WACV)
-        mainSizer.Add((5,5),0)
         if SGData['SGLaue'] in ['-1','2/m','mmm','4/m','4/mmm']:
             Ncol = 2
         else:
@@ -396,12 +262,9 @@ class SymOpDialog(wx.Dialog):
         self.oprs = wx.RadioBox(panel,-1,'Choose space group operator?',choices=OpList,
             majorDimension=Ncol)
         self.oprs.Bind(wx.EVT_RADIOBOX, self.OnOpSelect)
-        mainSizer.Add(self.oprs,0,WACV)
-        mainSizer.Add((5,5),0)
+        mainSizer.Add(self.oprs,0,WACV|wx.BOTTOM,5)
         mainSizer.Add(wx.StaticText(panel,-1,"   Choose unit cell?"),0,WACV)
-        mainSizer.Add((5,5),0)
         cellSizer = wx.BoxSizer(wx.HORIZONTAL)
-        cellSizer.Add((5,0),0)
         cellName = ['X','Y','Z']
         self.cell = []
         for i in range(3):
@@ -410,13 +273,12 @@ class SymOpDialog(wx.Dialog):
             self.cell[-1].SetValue(0)
             self.cell[-1].Bind(wx.EVT_SPINCTRL, self.OnOpSelect)
             cellSizer.Add(self.cell[-1],0,WACV)
-        mainSizer.Add(cellSizer,0,)
+        mainSizer.Add(cellSizer,0,WACV|wx.BOTTOM,5)
         if self.New:
             choice = ['No','Yes']
             self.new = wx.RadioBox(panel,-1,'Generate new positions?',choices=choice)
             self.new.Bind(wx.EVT_RADIOBOX, self.OnOpSelect)
             mainSizer.Add(self.new,0,WACV)
-        mainSizer.Add((5,5),0)
 
         OkBtn = wx.Button(panel,-1,"Ok")
         OkBtn.Bind(wx.EVT_BUTTON, self.OnOk)
@@ -435,8 +297,8 @@ class SymOpDialog(wx.Dialog):
         self.Fit()
 
     def OnOpSelect(self,event):
-        if self.SGData['SGInv']:
-            self.OpSelected[0] = self.inv.GetSelection()
+#        if self.SGData['SGInv']:
+        self.OpSelected[0] = self.inv.GetSelection()
         if self.SGData['SGLatt'] != 'P':
             self.OpSelected[1] = self.latt.GetSelection()
         self.OpSelected[2] = self.oprs.GetSelection()
@@ -576,65 +438,6 @@ class DisAglDialog(wx.Dialog):
         self._default(data,self.default)
         self.Draw(self.data)
                 
-class SingleFloatDialog(wx.Dialog):
-    'Dialog to obtain a single float value from user'
-    def __init__(self,parent,title,prompt,value,limits=[0.,1.],format='%.5g'):
-        wx.Dialog.__init__(self,parent,-1,title, 
-            pos=wx.DefaultPosition,style=wx.DEFAULT_DIALOG_STYLE)
-        self.panel = wx.Panel(self)         #just a dummy - gets destroyed in Draw!
-        self.limits = limits
-        self.value = value
-        self.prompt = prompt
-        self.format = format
-        self.Draw()
-        
-    def Draw(self):
-        
-        def OnValItem(event):
-            try:
-                val = float(valItem.GetValue())
-                if val < self.limits[0] or val > self.limits[1]:
-                    raise ValueError
-            except ValueError:
-                val = self.value
-            self.value = val
-            valItem.SetValue(self.format%(self.value))
-            
-        self.panel.Destroy()
-        self.panel = wx.Panel(self)
-        mainSizer = wx.BoxSizer(wx.VERTICAL)
-        mainSizer.Add(wx.StaticText(self.panel,-1,self.prompt),0,wx.ALIGN_CENTER)
-        valItem = wx.TextCtrl(self.panel,-1,value=self.format%(self.value),style=wx.TE_PROCESS_ENTER)
-        mainSizer.Add(valItem,0,wx.ALIGN_CENTER)
-        valItem.Bind(wx.EVT_TEXT_ENTER,OnValItem)
-        valItem.Bind(wx.EVT_KILL_FOCUS,OnValItem)
-        OkBtn = wx.Button(self.panel,-1,"Ok")
-        OkBtn.Bind(wx.EVT_BUTTON, self.OnOk)
-        CancelBtn = wx.Button(self.panel,-1,'Cancel')
-        CancelBtn.Bind(wx.EVT_BUTTON, self.OnCancel)
-        btnSizer = wx.BoxSizer(wx.HORIZONTAL)
-        btnSizer.Add((20,20),1)
-        btnSizer.Add(OkBtn)
-        btnSizer.Add(CancelBtn)
-        btnSizer.Add((20,20),1)
-        mainSizer.Add(btnSizer,0,wx.EXPAND|wx.BOTTOM|wx.TOP, 10)
-        self.panel.SetSizer(mainSizer)
-        self.panel.Fit()
-        self.Fit()
-
-    def GetValue(self):
-        return self.value
-        
-    def OnOk(self,event):
-        parent = self.GetParent()
-        parent.Raise()
-        self.EndModal(wx.ID_OK)              
-        
-    def OnCancel(self,event):
-        parent = self.GetParent()
-        parent.Raise()
-        self.EndModal(wx.ID_CANCEL)
-
 ################################################################################
 class SingleStringDialog(wx.Dialog):
     '''Dialog to obtain a single string value from user
@@ -1579,6 +1382,8 @@ class DataFrame(wx.Frame):
             help='Save selected sequential refinement results as a CSV spreadsheet file')
         self.SequentialFile.Append(id=wxID_PLOTSEQSEL, kind=wx.ITEM_NORMAL,text='Plot selected',
             help='Plot selected sequential refinement results')
+        self.SequentialFile.Append(id=wxID_AVESEQSEL, kind=wx.ITEM_NORMAL,text='Compute average',
+            help='Compute average for selected parameter')            
         self.SequentialFile.Append(id=wxID_ORGSEQSEL, kind=wx.ITEM_NORMAL,text='Reorganize',
             help='Reorganize variables where variables change')
         self.SequentialPvars = wx.Menu(title='')
@@ -1635,6 +1440,8 @@ class DataFrame(wx.Frame):
             help='Error analysis on single crystal data')
         self.ErrorAnal.Append(id=wxID_PWD3DHKLPLOT,kind=wx.ITEM_NORMAL,text='Plot 3D HKLs',
             help='Plot HKLs from single crystal data in 3D')
+        self.ErrorAnal.Append(id=wxID_3DALLHKLPLOT,kind=wx.ITEM_NORMAL,text='Plot all 3D HKLs',
+            help='Plot HKLs from all single crystal data in 3D')
         self.ErrorAnal.Append(id=wxID_PWDCOPY,kind=wx.ITEM_NORMAL,text='Copy params',
             help='Copy of HKLF parameters')
         self.PostfillDataMenu()
@@ -1659,6 +1466,9 @@ class DataFrame(wx.Frame):
             help='Copy background parameters to other histograms')
         self.BackEdit.Append(id=wxID_BACKFLAGCOPY, kind=wx.ITEM_NORMAL,text='Copy flags',
             help='Copy background refinement flags to other histograms')
+        self.BackEdit.Append(id=wxID_PEAKSMOVE, kind=wx.ITEM_NORMAL,text='Move peaks',
+            help='Move background peaks to Peak List')
+            
         self.PostfillDataMenu()
             
         # PDR / Instrument Parameters
@@ -1759,6 +1569,8 @@ class DataFrame(wx.Frame):
             text='Refine Cell',help='Refine unit cell parameters from indexed peaks')
         self.MakeNewPhase = self.IndexEdit.Append( id=wxID_MAKENEWPHASE, kind=wx.ITEM_NORMAL,
             text='Make new phase',help='Make new phase from selected unit cell')
+        self.ExportCells = self.IndexEdit.Append( id=wxID_EXPORTCELLS, kind=wx.ITEM_NORMAL,
+            text='Export cell list',help='Export cell list to csv file')
         self.PostfillDataMenu()
         self.IndexPeaks.Enable(False)
         self.CopyCell.Enable(False)
@@ -1954,6 +1766,12 @@ class DataFrame(wx.Frame):
         self.DataMenu.Append(menu=wx.Menu(title=''),title='Select tab')
         self.DataEdit = wx.Menu(title='')
         self.DataMenu.Append(menu=self.DataEdit, title='Edit')
+        self.DataEdit.Append(id=wxID_DATACOPY, kind=wx.ITEM_NORMAL,text='Copy data',
+            help='Copy phase data to other histograms')
+        self.DataEdit.Append(id=wxID_DATACOPYFLAGS, kind=wx.ITEM_NORMAL,text='Copy flags',
+            help='Copy phase data flags to other histograms')
+        self.DataEdit.Append(id=wxID_DATASELCOPY, kind=wx.ITEM_NORMAL,text='Copy selected data',
+            help='Copy selected phase data to other histograms')
         self.DataEdit.Append(id=wxID_PWDRADD, kind=wx.ITEM_NORMAL,text='Add powder histograms',
             help='Select new powder histograms to be used for this phase')
         self.DataEdit.Append(id=wxID_HKLFADD, kind=wx.ITEM_NORMAL,text='Add single crystal histograms',
@@ -2109,11 +1927,10 @@ class DataFrame(wx.Frame):
         self.TextureMenu.Append(menu=wx.Menu(title=''),title='Select tab')
         self.TextureEdit = wx.Menu(title='')
         self.TextureMenu.Append(menu=self.TextureEdit, title='Texture')
-#        self.TextureEdit.Append(id=wxID_REFINETEXTURE, kind=wx.ITEM_NORMAL,text='Refine texture', 
-#            help='Refine the texture coefficients from sequential Pawley results')
-# N.B. Binding is now commented out
-        self.TextureEdit.Append(id=wxID_CLEARTEXTURE, kind=wx.ITEM_NORMAL,text='Clear texture', 
-            help='Clear the texture coefficients' )
+        self.TextureEdit.Append(id=wxID_REFINETEXTURE, kind=wx.ITEM_NORMAL,text='Refine texture', 
+            help='Refine the texture coefficients from sequential results')
+#        self.TextureEdit.Append(id=wxID_CLEARTEXTURE, kind=wx.ITEM_NORMAL,text='Clear texture', 
+#            help='Clear the texture coefficients' )
         self.PostfillDataMenu()
             
         # Phase / Pawley tab
@@ -2210,296 +2027,10 @@ class DataFrame(wx.Frame):
         self.ClearBackground()
         self.DestroyChildren()
                    
-################################################################################
-#####  GSNotebook
-################################################################################           
-       
-class GSNoteBook(wx.aui.AuiNotebook):
-    '''Notebook used in various locations; implemented with wx.aui extension
-    '''
-    def __init__(self, parent, name='',size = None):
-        wx.aui.AuiNotebook.__init__(self, parent, -1,
-                                    style=wx.aui.AUI_NB_TOP |
-                                    wx.aui.AUI_NB_SCROLL_BUTTONS)
-        if size: self.SetSize(size)
-        self.parent = parent
-        self.PageChangeHandler = None
-        
-    def PageChangeEvent(self,event):
-        G2frame = self.parent.G2frame
-        page = event.GetSelection()
-        if self.PageChangeHandler:
-            if log.LogInfo['Logging']:
-                log.MakeTabLog(
-                    G2frame.dataFrame.GetTitle(),
-                    G2frame.dataDisplay.GetPageText(page)
-                    )
-            self.PageChangeHandler(event)
-            
-    def Bind(self,eventtype,handler,*args,**kwargs):
-        '''Override the Bind() function so that page change events can be trapped
-        '''
-        if eventtype == wx.aui.EVT_AUINOTEBOOK_PAGE_CHANGED:
-            self.PageChangeHandler = handler
-            wx.aui.AuiNotebook.Bind(self,eventtype,self.PageChangeEvent)
-            return
-        wx.aui.AuiNotebook.Bind(self,eventtype,handler,*args,**kwargs)
-                                                      
-    def Clear(self):        
-        GSNoteBook.DeleteAllPages(self)
-        
-    def FindPage(self,name):
-        numPage = self.GetPageCount()
-        for page in range(numPage):
-            if self.GetPageText(page) == name:
-                return page
-
-    def ChangeSelection(self,page):
-        # in wx.Notebook ChangeSelection is like SetSelection, but it
-        # does not invoke the event related to pressing the tab button
-        # I don't see a way to do that in aui.
-        oldPage = self.GetSelection()
-        self.SetSelection(page)
-        return oldPage
-
-    # def __getattribute__(self,name):
-    #     '''This method provides a way to print out a message every time
-    #     that a method in a class is called -- to see what all the calls
-    #     might be, or where they might be coming from.
-    #     Cute trick for debugging!
-    #     '''
-    #     attr = object.__getattribute__(self, name)
-    #     if hasattr(attr, '__call__'):
-    #         def newfunc(*args, **kwargs):
-    #             print('GSauiNoteBook calling %s' %attr.__name__)
-    #             result = attr(*args, **kwargs)
-    #             return result
-    #         return newfunc
-    #     else:
-    #         return attr
-            
-################################################################################
-#####  GSGrid
-################################################################################           
-       
-class GSGrid(wg.Grid):
-    '''Basic wx.Grid implementation
-    '''
-    def __init__(self, parent, name=''):
-        wg.Grid.__init__(self,parent,-1,name=name)                    
-        #self.SetSize(parent.GetClientSize())
-        # above removed to speed drawing of initial grid
-        # does not appear to be needed
-            
-    def Clear(self):
-        wg.Grid.ClearGrid(self)
-        
-    def SetCellReadOnly(self,r,c,readonly=True):
-        self.SetReadOnly(r,c,isReadOnly=readonly)
-        
-    def SetCellStyle(self,r,c,color="white",readonly=True):
-        self.SetCellBackgroundColour(r,c,color)
-        self.SetReadOnly(r,c,isReadOnly=readonly)
-        
-    def GetSelection(self):
-        #this is to satisfy structure drawing stuff in G2plt when focus changes
-        return None
-
-    def InstallGridToolTip(self, rowcolhintcallback,
-                           colLblCallback=None,rowLblCallback=None):
-        '''code to display a tooltip for each item on a grid
-        from http://wiki.wxpython.org/wxGrid%20ToolTips (buggy!), expanded to
-        column and row labels using hints from
-        https://groups.google.com/forum/#!topic/wxPython-users/bm8OARRVDCs
-
-        :param function rowcolhintcallback: a routine that returns a text
-          string depending on the selected row and column, to be used in
-          explaining grid entries.
-        :param function colLblCallback: a routine that returns a text
-          string depending on the selected column, to be used in
-          explaining grid columns (if None, the default), column labels
-          do not get a tooltip.
-        :param function rowLblCallback: a routine that returns a text
-          string depending on the selected row, to be used in
-          explaining grid rows (if None, the default), row labels
-          do not get a tooltip.
-        '''
-        prev_rowcol = [None,None,None]
-        def OnMouseMotion(event):
-            # event.GetRow() and event.GetCol() would be nice to have here,
-            # but as this is a mouse event, not a grid event, they are not
-            # available and we need to compute them by hand.
-            x, y = self.CalcUnscrolledPosition(event.GetPosition())
-            row = self.YToRow(y)
-            col = self.XToCol(x)
-            hinttext = ''
-            win = event.GetEventObject()
-            if [row,col,win] == prev_rowcol: # no change from last position
-                event.Skip()
-                return
-            if win == self.GetGridWindow() and row >= 0 and col >= 0:
-                hinttext = rowcolhintcallback(row, col)
-            elif win == self.GetGridColLabelWindow() and col >= 0:
-                if colLblCallback: hinttext = colLblCallback(col)
-            elif win == self.GetGridRowLabelWindow() and row >= 0:
-                if rowLblCallback: hinttext = rowLblCallback(row)
-            else: # this should be the upper left corner, which is empty
-                event.Skip()
-                return
-            if hinttext is None: hinttext = ''
-            win.SetToolTipString(hinttext)
-            prev_rowcol[:] = [row,col,win]
-            event.Skip()
-
-        wx.EVT_MOTION(self.GetGridWindow(), OnMouseMotion)
-        if colLblCallback: wx.EVT_MOTION(self.GetGridColLabelWindow(), OnMouseMotion)
-        if rowLblCallback: wx.EVT_MOTION(self.GetGridRowLabelWindow(), OnMouseMotion)
-                                                    
-################################################################################
-#####  Table
-################################################################################           
-       
-class Table(wg.PyGridTableBase):
-    '''Basic data table for use with GSgrid
-    '''
-    def __init__(self, data=[], rowLabels=None, colLabels=None, types = None):
-        wg.PyGridTableBase.__init__(self)
-        self.colLabels = colLabels
-        self.rowLabels = rowLabels
-        self.dataTypes = types
-        self.data = data
-        
-    def AppendRows(self, numRows=1):
-        self.data.append([])
-        return True
-        
-    def CanGetValueAs(self, row, col, typeName):
-        if self.dataTypes:
-            colType = self.dataTypes[col].split(':')[0]
-            if typeName == colType:
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    def CanSetValueAs(self, row, col, typeName):
-        return self.CanGetValueAs(row, col, typeName)
-
-    def DeleteRow(self,pos):
-        data = self.GetData()
-        self.SetData([])
-        new = []
-        for irow,row in enumerate(data):
-            if irow <> pos:
-                new.append(row)
-        self.SetData(new)
-        
-    def GetColLabelValue(self, col):
-        if self.colLabels:
-            return self.colLabels[col]
-            
-    def GetData(self):
-        data = []
-        for row in range(self.GetNumberRows()):
-            data.append(self.GetRowValues(row))
-        return data
-        
-    def GetNumberCols(self):
-        try:
-            return len(self.colLabels)
-        except TypeError:
-            return None
-        
-    def GetNumberRows(self):
-        return len(self.data)
-        
-    def GetRowLabelValue(self, row):
-        if self.rowLabels:
-            return self.rowLabels[row]
-        
-    def GetColValues(self, col):
-        data = []
-        for row in range(self.GetNumberRows()):
-            data.append(self.GetValue(row, col))
-        return data
-        
-    def GetRowValues(self, row):
-        data = []
-        for col in range(self.GetNumberCols()):
-            data.append(self.GetValue(row, col))
-        return data
-        
-    def GetTypeName(self, row, col):
-        try:
-            if self.data[row][col] is None: return None
-            return self.dataTypes[col]
-        except (TypeError,IndexError):
-            return None
-
-    def GetValue(self, row, col):
-        try:
-            if self.data[row][col] is None: return ""
-            return self.data[row][col]
-        except IndexError:
-            return None
-            
-    def InsertRows(self, pos, rows):
-        for row in range(rows):
-            self.data.insert(pos,[])
-            pos += 1
-        
-    def IsEmptyCell(self,row,col):
-        try:
-            return not self.data[row][col]
-        except IndexError:
-            return True
-        
-    def OnKeyPress(self, event):
-        dellist = self.GetSelectedRows()
-        if event.GetKeyCode() == wx.WXK_DELETE and dellist:
-            grid = self.GetView()
-            for i in dellist: grid.DeleteRow(i)
-                
-    def SetColLabelValue(self, col, label):
-        numcols = self.GetNumberCols()
-        if col > numcols-1:
-            self.colLabels.append(label)
-        else:
-            self.colLabels[col]=label
-        
-    def SetData(self,data):
-        for row in range(len(data)):
-            self.SetRowValues(row,data[row])
-                
-    def SetRowLabelValue(self, row, label):
-        self.rowLabels[row]=label
-            
-    def SetRowValues(self,row,data):
-        self.data[row] = data
-            
-    def SetValue(self, row, col, value):
-        def innerSetValue(row, col, value):
-            try:
-                self.data[row][col] = value
-            except TypeError:
-                return
-            except IndexError:
-                print row,col,value
-                # add a new row
-                if row > self.GetNumberRows():
-                    self.data.append([''] * self.GetNumberCols())
-                elif col > self.GetNumberCols():
-                    for row in range(self.GetNumberRows):
-                        self.data[row].append('')
-                print self.data
-                self.data[row][col] = value
-        innerSetValue(row, col, value)
 
 ################################################################################
-#####  Notebook
-################################################################################           
-       
+#####  Notebook Tree Item editor
+################################################################################                  
 def UpdateNotebook(G2frame,data):
     '''Called when the data tree notebook entry is selected. Allows for
     editing of the text in that tree entry
@@ -2523,9 +2054,8 @@ def UpdateNotebook(G2frame,data):
     G2frame.dataFrame.setSizePosLeft([400,250])
             
 ################################################################################
-#####  Controls
+#####  Controls Tree Item editor
 ################################################################################           
-       
 def UpdateControls(G2frame,data):
     '''Edit overall GSAS-II controls in main Controls data tree entry
     '''
@@ -2536,15 +2066,13 @@ def UpdateControls(G2frame,data):
         data['min dM/M'] = 0.0001
         data['shift factor'] = 1.
         data['max cyc'] = 3        
-        data['F**2'] = True
-        data['minF/sig'] = 0
+        data['F**2'] = False
     if 'shift factor' not in data:
         data['shift factor'] = 1.
     if 'max cyc' not in data:
         data['max cyc'] = 3
     if 'F**2' not in data:
-        data['F**2'] = True
-        data['minF/sig'] = 0
+        data['F**2'] = False
     if 'Author' not in data:
         data['Author'] = 'no name'
     if 'FreePrm1' not in data:
@@ -2556,11 +2084,14 @@ def UpdateControls(G2frame,data):
     if 'Copy2Next' not in data:
         data['Copy2Next'] = False
     if 'Reverse Seq' not in data:
-        data['Reverse Seq'] = False   
+        data['Reverse Seq'] = False
+    if 'UsrReject' not in data:
+        data['UsrReject'] = {'minF/sig':0,'MinExt':0.01,'MaxDF/F':20.,'MaxD':500.,'MinD':0.05}
 # </ Anton Gagin     
 # additional controls in main Controls data tree entry
 # multiplicative controls
     if 'corrParam E_mu' not in data:
+
         data['corrParam E_mu'] = str(0)  
     if 'corrParam k_mu' not in data:
         data['corrParam k_mu'] = str(0)    
@@ -2602,15 +2133,17 @@ def UpdateControls(G2frame,data):
     def SeqSizer():
         
         def OnSelectData(event):
-            choices = GetPatternTreeDataNames(G2frame,['PWDR',])
+            choices = GetPatternTreeDataNames(G2frame,['PWDR','HKLF',])
             sel = []
-            if 'Seq Data' in data:
-                for item in data['Seq Data']:
-                    sel.append(choices.index(item))
-                sel = [choices.index(item) for item in data['Seq Data']]
-            dlg = G2MultiChoiceDialog(G2frame.dataFrame, 'Sequential refinement',
-                                      'Select dataset to include',
-                                      choices)
+            try:
+                if 'Seq Data' in data:
+                    for item in data['Seq Data']:
+                        sel.append(choices.index(item))
+                    sel = [choices.index(item) for item in data['Seq Data']]
+            except ValueError:  #data changed somehow - start fresh
+                sel = []
+            dlg = G2G.G2MultiChoiceDialog(G2frame.dataFrame, 'Sequential refinement',
+                'Select dataset to include',choices)
             dlg.SetSelections(sel)
             names = []
             if dlg.ShowModal() == wx.ID_OK:
@@ -2635,7 +2168,7 @@ def UpdateControls(G2frame,data):
         dataSizer.Add(selSeqData,0,WACV)
         SeqData = data.get('Seq Data',[])
         if not SeqData:
-            lbl = ' (no powder data selected)'
+            lbl = ' (no data selected)'
         else:
             lbl = ' ('+str(len(SeqData))+' dataset(s) selected)'
 
@@ -2684,13 +2217,15 @@ def UpdateControls(G2frame,data):
         def OnFsqRef(event):
             data['F**2'] = fsqRef.GetValue()
         
-        def OnMinSig(event):
+        def OnUsrRej(event):
+            Obj = event.GetEventObject()
+            item,limits = Indx[Obj]
             try:
-                value = min(max(float(minSig.GetValue()),0.),5.)
+                value = min(max(float(Obj.GetValue()),limits[0]),limits[1])
             except ValueError:
-                value = 1.0
-            data['minF/sig'] = value
-            minSig.SetValue('%.2f'%(value))
+                value = data['UsrReject'][item]
+            data['UsrReject'][item] = value
+            Obj.SetValue('%.2f'%(value))
 
         LSSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)
         LSSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Refinement derivatives: '),0,WACV)
@@ -2706,6 +2241,7 @@ def UpdateControls(G2frame,data):
         Cnvrg.Bind(wx.EVT_TEXT_ENTER,OnConvergence)
         Cnvrg.Bind(wx.EVT_KILL_FOCUS,OnConvergence)
         LSSizer.Add(Cnvrg,0,WACV)
+        Indx = {}
         if 'Hessian' in data['deriv type']:
             LSSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Max cycles: '),0,WACV)
             Choice = ['0','1','2','3','5','10','15','20']
@@ -2721,19 +2257,24 @@ def UpdateControls(G2frame,data):
             Factr.Bind(wx.EVT_KILL_FOCUS,OnFactor)
             LSSizer.Add(Factr,0,WACV)
         if G2frame.Sngl:
-            LSSizer.Add((1,0),)
-            LSSizer.Add((1,0),)
+            userReject = data['UsrReject']
+            usrRej = {'minF/sig':[' Min obs/sig (0-5): ',[0,5], ],'MinExt':[' Min extinct. (0-.9): ',[0,.9],],
+                'MaxDF/F':[' Max delt-F/sig (3-1000): ',[3.,1000.],],'MaxD':[' Max d-spacing (3-500): ',[3,500],],
+                'MinD':[' Min d-spacing (0.1-1.0): ',[0.1,1.0],]}
+
             fsqRef = wx.CheckBox(G2frame.dataDisplay,-1,label='Refine HKLF as F^2? ')
             fsqRef.SetValue(data['F**2'])
             fsqRef.Bind(wx.EVT_CHECKBOX,OnFsqRef)
             LSSizer.Add(fsqRef,0,WACV)
-            LSSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,label='Min obs/sig (0-5): '),0,WACV)
-            minSig = wx.TextCtrl(G2frame.dataDisplay,-1,value='%.2f'%(data['minF/sig']),style=wx.TE_PROCESS_ENTER)
-            minSig.Bind(wx.EVT_TEXT_ENTER,OnMinSig)
-            minSig.Bind(wx.EVT_KILL_FOCUS,OnMinSig)
-            LSSizer.Add(minSig,0,WACV)
+            LSSizer.Add((1,0),)
+            for item in usrRej:
+                LSSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,label=usrRej[item][0]),0,WACV)
+                usrrej = wx.TextCtrl(G2frame.dataDisplay,-1,value='%.2f'%(userReject[item]),style=wx.TE_PROCESS_ENTER)
+                Indx[usrrej] = [item,usrRej[item][1]]
+                usrrej.Bind(wx.EVT_TEXT_ENTER,OnUsrRej)
+                usrrej.Bind(wx.EVT_KILL_FOCUS,OnUsrRej)
+                LSSizer.Add(usrrej,0,WACV)
         return LSSizer
-        
         
 # </ Anton Gagin            
     def MargMultSizer():
@@ -2917,7 +2458,6 @@ def UpdateControls(G2frame,data):
         return MargIterSizer           
 # Anton Gagin />       
         
-        
     def AuthSizer():
 
         def OnAuthor(event):
@@ -2950,6 +2490,8 @@ def UpdateControls(G2frame,data):
     mainSizer.Add((5,5),0)
     mainSizer.Add(AuthSizer())
     mainSizer.Add((5,5),0)
+        
+
 # </ Anton Gagin               
    # additional controls in main Controls data tree entry 
     mainSizer.Add((10,10),0)
@@ -3030,7 +2572,8 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
             sampleParmDict = {'Sample load':[],}
         else:
             sampleParmDict = {'Temperature':[],'Pressure':[],'Time':[],
-                              'FreePrm1':[],'FreePrm2':[],'FreePrm3':[],}
+                'FreePrm1':[],'FreePrm2':[],'FreePrm3':[],'Omega':[],
+                'Chi':[],'Phi':[],'Azimuth':[],}
         Controls = G2frame.PatternTree.GetItemPyData(
             GetPatternTreeItemId(G2frame,G2frame.root, 'Controls'))
         sampleParm = {}
@@ -3089,6 +2632,19 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
             G2frame.ErrorDialog(
                 'Select columns',
                 'No columns or rows selected in table. Click on row or column labels to select fields for plotting.'
+                )                
+    def OnAveSelSeq(event):
+        'average the selected columns from menu command'
+        cols = sorted(G2frame.dataDisplay.GetSelectedCols()) # ignore selection order
+        if cols:
+            for col in cols:
+                ave = np.mean(GetColumnInfo(col)[1])
+                sig = np.std(GetColumnInfo(col)[1])
+                print ' Average for '+G2frame.SeqTable.GetColLabelValue(col)+': '+'%.6g'%(ave)+' +/- '+'%.6g'%(sig)
+        else:
+            G2frame.ErrorDialog(
+                'Select columns',
+                'No columns selected in table. Click on column labels to select fields for averaging.'
                 )
                 
     def OnRenameSelSeq(event):
@@ -3102,7 +2658,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
             G2frame.ErrorDialog('Select columns',
                 'No columns selected in table. Click on column labels to select fields for rename.')
             return
-        dlg = MultiStringDialog(G2frame.dataDisplay,'Set column names',colNames,newNames)
+        dlg = G2G.MultiStringDialog(G2frame.dataDisplay,'Set column names',colNames,newNames)
         if dlg.Show():
             newNames = dlg.GetValues()            
             variableLabels.update(dict(zip(colNames,newNames)))
@@ -3234,7 +2790,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
         'returns a selected column number (or None) as the X-axis selection'
         ncols = G2frame.SeqTable.GetNumberCols()
         colNames = [G2frame.SeqTable.GetColLabelValue(r) for r in range(ncols)]
-        dlg = G2SingleChoiceDialog(
+        dlg = G2G.G2SingleChoiceDialog(
             G2frame.dataDisplay,
             'Select x-axis parameter for plot or Cancel for sequence number',
             'Select X-axis',
@@ -3260,7 +2816,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
     def DelPseudoVar(event):
         'Ask the user to select a pseudo var expression to delete'
         choices = Controls['SeqPseudoVars'].keys()
-        selected = ItemSelector(
+        selected = G2G.ItemSelector(
             choices,G2frame.dataFrame,
             multiple=True,
             title='Select expressions to remove',
@@ -3277,7 +2833,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
         if len(choices) == 1:
             selected = 0
         else:
-            selected = ItemSelector(
+            selected = G2G.ItemSelector(
                 choices,G2frame.dataFrame,
                 multiple=False,
                 title='Select an expression to edit',
@@ -3515,7 +3071,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
     def DelParFitEq(event):
         'Ask the user to select function to delete'
         txtlst = [obj.GetDepVar()+' = '+obj.expression for obj in Controls['SeqParFitEqList']]
-        selected = ItemSelector(
+        selected = G2G.ItemSelector(
             txtlst,G2frame.dataFrame,
             multiple=True,
             title='Select a parametric equation(s) to remove',
@@ -3531,7 +3087,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
         if len(txtlst) == 1:
             selected = 0
         else:
-            selected = ItemSelector(
+            selected = G2G.ItemSelector(
                 txtlst,G2frame.dataFrame,
                 multiple=False,
                 title='Select a parametric equation to edit',
@@ -3583,7 +3139,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
         if len(txtlst) == 1:
             selected = 0
         else:
-            selected = ItemSelector(
+            selected = G2G.ItemSelector(
                 txtlst,G2frame.dataFrame,
                 multiple=False,
                 title='Select a parametric equation to copy',
@@ -3632,7 +3188,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
             return
         var = colLabels[col]
         lbl = variableLabels.get(var,G2obj.fmtVarDescr(var))
-        dlg = SingleStringDialog(G2frame.dataFrame,'Set variable label',
+        dlg = G2G.SingleStringDialog(G2frame.dataFrame,'Set variable label',
                                  'Set a new name for variable '+var,lbl,size=(400,-1))
         if dlg.Show():
             variableLabels[var] = dlg.GetValue()
@@ -3734,6 +3290,7 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
     G2frame.dataFrame.Bind(wx.EVT_MENU, OnSaveSelSeqCSV, id=wxID_SAVESEQSELCSV)
     G2frame.dataFrame.Bind(wx.EVT_MENU, OnSaveSeqCSV, id=wxID_SAVESEQCSV)
     G2frame.dataFrame.Bind(wx.EVT_MENU, OnPlotSelSeq, id=wxID_PLOTSEQSEL)
+    G2frame.dataFrame.Bind(wx.EVT_MENU, OnAveSelSeq, id=wxID_AVESEQSEL)
     G2frame.dataFrame.Bind(wx.EVT_MENU, OnReOrgSelSeq, id=wxID_ORGSEQSEL)
     G2frame.dataFrame.Bind(wx.EVT_MENU, AddNewPseudoVar, id=wxADDSEQVAR)
     G2frame.dataFrame.Bind(wx.EVT_MENU, DelPseudoVar, id=wxDELSEQVAR)
@@ -3972,8 +3529,8 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
     # add recip cell coeff. values
     depVarDict.update({var:val for var,val in data[name].get('newCellDict',{}).values()})
 
-    G2frame.dataDisplay = GSGrid(parent=G2frame.dataFrame)
-    G2frame.SeqTable = Table(
+    G2frame.dataDisplay = G2G.GSGrid(parent=G2frame.dataFrame)
+    G2frame.SeqTable = G2G.Table(
         [list(c) for c in zip(*colList)],     # convert from columns to rows
         colLabels=colLabels,rowLabels=histNames,types=Types)
     G2frame.dataDisplay.SetTable(G2frame.SeqTable, True)
@@ -4063,6 +3620,37 @@ def UpdatePWHKPlot(G2frame,kind,item):
             'Scale':1.0,'oldxy':[],'viewDir':[1,0,0]},'Super':Super,'SuperVec':SuperVec}
         G2plt.Plot3DSngl(G2frame,newPlot=True,Data=controls,hklRef=refList,Title=phaseName)
         
+    def OnPlotAll3DHKL(event):
+        choices = GetPatternTreeDataNames(G2frame,['HKLF',])
+        dlg = G2G.G2MultiChoiceDialog(G2frame, 'Select reflection sets to plot',
+            'Use data',choices)
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                refNames = [choices[i] for i in dlg.GetSelections()]
+            else:
+                return
+        finally:
+            dlg.Destroy()
+        refList = np.zeros(0)
+        for name in refNames:
+            Id = GetPatternTreeItemId(G2frame,G2frame.root, name)
+            reflData = G2frame.PatternTree.GetItemPyData(Id)[1]
+            if len(refList):
+                refList = np.concatenate((refList,reflData['RefList']))
+            else:
+                refList = reflData['RefList']
+            
+        FoMax = np.max(refList.T[8+Super])
+        Hmin = np.array([int(np.min(refList.T[0])),int(np.min(refList.T[1])),int(np.min(refList.T[2]))])
+        Hmax = np.array([int(np.max(refList.T[0])),int(np.max(refList.T[1])),int(np.max(refList.T[2]))])
+        Vpoint = [int(np.mean(refList.T[0])),int(np.mean(refList.T[1])),int(np.mean(refList.T[2]))]
+        controls = {'Type' : 'Fosq','Iscale' : False,'HKLmax' : Hmax,'HKLmin' : Hmin,
+            'FoMax' : FoMax,'Scale' : 1.0,'Drawing':{'viewPoint':[Vpoint,[]],'default':Vpoint[:],
+            'backColor':[0,0,0],'depthFog':False,'Zclip':10.0,'cameraPos':10.,'Zstep':0.05,
+            'Scale':1.0,'oldxy':[],'viewDir':[1,0,0]},'Super':Super,'SuperVec':SuperVec}
+        G2plt.Plot3DSngl(G2frame,newPlot=True,Data=controls,hklRef=refList,Title=phaseName)
+        
+        
     def OnErrorAnalysis(event):
         G2plt.PlotDeltSig(G2frame,kind)
         
@@ -4108,8 +3696,9 @@ def UpdatePWHKPlot(G2frame,kind,item):
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopyPlotCtrls, id=wxID_PLOTCTRLCOPY)
     elif kind in ['HKLF',]:
         SetDataMenuBar(G2frame,G2frame.dataFrame.HKLFMenu)
-#        G2frame.dataFrame.Bind(wx.EVT_MENU, OnErrorAnalysis, id=wxID_PWDANALYSIS)
+        G2frame.dataFrame.Bind(wx.EVT_MENU, OnErrorAnalysis, id=wxID_PWDANALYSIS)
         G2frame.dataFrame.Bind(wx.EVT_MENU, OnPlot3DHKL, id=wxID_PWD3DHKLPLOT)
+        G2frame.dataFrame.Bind(wx.EVT_MENU, OnPlotAll3DHKL, id=wxID_3DALLHKLPLOT)
 #        G2frame.dataFrame.Bind(wx.EVT_MENU, onCopySelectedItems, id=wxID_PWDCOPY)
     G2frame.dataDisplay = wx.Panel(G2frame.dataFrame)
     
@@ -4220,8 +3809,9 @@ def GetPatternTreeItemId(G2frame, parentId, itemText):
 def MovePatternTreeToGrid(G2frame,item):
     '''Called from GSASII.OnPatternTreeSelChanged when a item is selected on the tree 
     '''
-    
-#    print G2frame.PatternTree.GetItemText(item)
+    pickName = G2frame.PatternTree.GetItemText(item)
+    if G2frame.PickIdText == pickName:
+        return
     
     oldPage = None # will be set later if already on a Phase item
     if G2frame.dataFrame:
@@ -4253,7 +3843,8 @@ def MovePatternTreeToGrid(G2frame,item):
         G2frame.dataFrame.PhaseUserSize = None
         
     G2frame.dataFrame.Raise()            
-    G2frame.PickId = 0
+    G2frame.PickId = item
+    G2frame.PickIdText = None
     parentID = G2frame.root
     #for i in G2frame.ExportPattern: i.Enable(False)
     defWid = [250,150]
@@ -4261,7 +3852,6 @@ def MovePatternTreeToGrid(G2frame,item):
         parentID = G2frame.PatternTree.GetItemParent(item)
     if G2frame.PatternTree.GetItemParent(item) == G2frame.root:
         G2frame.PatternId = item
-        G2frame.PickId = item
         if G2frame.PatternTree.GetItemText(item) == 'Notebook':
             SetDataMenuBar(G2frame,G2frame.dataFrame.DataNotebookMenu)
             G2frame.PatternId = 0
@@ -4339,42 +3929,35 @@ def MovePatternTreeToGrid(G2frame,item):
             wx.TextCtrl(parent=G2frame.dataFrame,size=G2frame.dataFrame.GetClientSize(),
                 value='Select one phase to see its parameters')            
     elif 'I(Q)' in G2frame.PatternTree.GetItemText(item):
-        G2frame.PickId = item
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(GetPatternTreeItemId(G2frame,G2frame.PatternId,'PDF Controls'))
         G2pdG.UpdatePDFGrid(G2frame,data)
         G2plt.PlotISFG(G2frame,type='I(Q)',newPlot=True)
     elif 'S(Q)' in G2frame.PatternTree.GetItemText(item):
-        G2frame.PickId = item
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(GetPatternTreeItemId(G2frame,G2frame.PatternId,'PDF Controls'))
         G2pdG.UpdatePDFGrid(G2frame,data)
         G2plt.PlotISFG(G2frame,type='S(Q)',newPlot=True)
     elif 'F(Q)' in G2frame.PatternTree.GetItemText(item):
-        G2frame.PickId = item
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(GetPatternTreeItemId(G2frame,G2frame.PatternId,'PDF Controls'))
         G2pdG.UpdatePDFGrid(G2frame,data)
         G2plt.PlotISFG(G2frame,type='F(Q)',newPlot=True)
     elif 'G(R)' in G2frame.PatternTree.GetItemText(item):
-        G2frame.PickId = item
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(GetPatternTreeItemId(G2frame,G2frame.PatternId,'PDF Controls'))
         G2pdG.UpdatePDFGrid(G2frame,data)
         G2plt.PlotISFG(G2frame,type='G(R)',newPlot=True)            
     elif G2frame.PatternTree.GetItemText(parentID) == 'Phases':
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2phG.UpdatePhaseData(G2frame,item,data,oldPage)
     elif G2frame.PatternTree.GetItemText(item) == 'Comments':
         SetDataMenuBar(G2frame,G2frame.dataFrame.DataCommentsMenu)
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         UpdateComments(G2frame,data)
     elif G2frame.PatternTree.GetItemText(item) == 'Image Controls':
         G2frame.dataFrame.SetTitle('Image Controls')
-        G2frame.PickId = item
         G2frame.Image = G2frame.PatternTree.GetItemParent(item)
         masks = G2frame.PatternTree.GetItemPyData(
             GetPatternTreeItemId(G2frame,G2frame.Image, 'Masks'))
@@ -4383,14 +3966,12 @@ def MovePatternTreeToGrid(G2frame,item):
         G2plt.PlotImage(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Masks':
         G2frame.dataFrame.SetTitle('Masks')
-        G2frame.PickId = item
         G2frame.Image = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(item)
         G2imG.UpdateMasks(G2frame,data)
         G2plt.PlotImage(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Stress/Strain':
         G2frame.dataFrame.SetTitle('Stress/Strain')
-        G2frame.PickId = item
         G2frame.Image = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(item)
         G2plt.PlotImage(G2frame)
@@ -4399,7 +3980,6 @@ def MovePatternTreeToGrid(G2frame,item):
     elif G2frame.PatternTree.GetItemText(item) == 'PDF Controls':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         for i in G2frame.ExportPDF: i.Enable(True)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2pdG.UpdatePDFGrid(G2frame,data)
         G2plt.PlotISFG(G2frame,type='I(Q)')
@@ -4409,7 +3989,6 @@ def MovePatternTreeToGrid(G2frame,item):
     elif G2frame.PatternTree.GetItemText(item) == 'Peak List':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         for i in G2frame.ExportPeakList: i.Enable(True)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
 #patch
         if 'list' in str(type(data)):
@@ -4420,27 +3999,23 @@ def MovePatternTreeToGrid(G2frame,item):
         G2plt.PlotPatterns(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Background':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2pdG.UpdateBackground(G2frame,data)
         G2plt.PlotPatterns(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Limits':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         datatype = G2frame.PatternTree.GetItemText(G2frame.PatternId)[:4]
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2pdG.UpdateLimitsGrid(G2frame,data,datatype)
         G2plt.PlotPatterns(G2frame,plotType=datatype)
     elif G2frame.PatternTree.GetItemText(item) == 'Instrument Parameters':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)[0]
         G2pdG.UpdateInstrumentGrid(G2frame,data)
         if 'P' in data['Type'][0]:          #powder data only
             G2plt.PlotPeakWidths(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Models':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2pdG.UpdateModelsGrid(G2frame,data)
         G2plt.PlotPatterns(G2frame,plotType='SASD')
@@ -4448,12 +4023,10 @@ def MovePatternTreeToGrid(G2frame,item):
             G2plt.PlotSASDSizeDist(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Substances':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2pdG.UpdateSubstanceGrid(G2frame,data)
     elif G2frame.PatternTree.GetItemText(item) == 'Sample Parameters':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         datatype = G2frame.PatternTree.GetItemPyData(G2frame.PatternId)[2][:4]
 
@@ -4469,7 +4042,6 @@ def MovePatternTreeToGrid(G2frame,item):
     elif G2frame.PatternTree.GetItemText(item) == 'Index Peak List':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
         for i in G2frame.ExportPeakList: i.Enable(True)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
 #patch
         if len(data) != 2:
@@ -4483,7 +4055,6 @@ def MovePatternTreeToGrid(G2frame,item):
             G2plt.PlotPatterns(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Unit Cells List':
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         if not data:
             data.append([0,0.0,4,25.0,0,'P1',1,1,1,90,90,90]) #zero error flag, zero value, max Nc/No, start volume
@@ -4504,7 +4075,6 @@ def MovePatternTreeToGrid(G2frame,item):
             G2plt.PlotPatterns(G2frame)
     elif G2frame.PatternTree.GetItemText(item) == 'Reflection Lists':   #powder reflections
         G2frame.PatternId = G2frame.PatternTree.GetItemParent(item)
-        G2frame.PickId = item
         data = G2frame.PatternTree.GetItemPyData(item)
         G2frame.RefList = ''
         if len(data):
@@ -4516,6 +4086,9 @@ def MovePatternTreeToGrid(G2frame,item):
         name = G2frame.PatternTree.GetItemText(G2frame.PatternId)
         data = G2frame.PatternTree.GetItemPyData(G2frame.PatternId)
         G2pdG.UpdateReflectionGrid(G2frame,data,HKLF=True,Name=name)
+
+    if G2frame.PickId:
+        G2frame.PickIdText = G2frame.GetTreeItemsList(G2frame.PickId)
     G2frame.dataFrame.Raise()
 
 def SetDataMenuBar(G2frame,menu=None):
@@ -4536,13 +4109,6 @@ def SetDataMenuBar(G2frame,menu=None):
             G2frame.dataFrame.SetMenuBar(G2frame.dataFrame.BlankMenu)
         else:
             G2frame.dataFrame.SetMenuBar(menu)
-
-def HorizontalLine(sizer,parent):
-    '''Draws a horizontal line as wide as the window.
-    This shows up on the Mac as a very thin line, no matter what I do
-    '''
-    line = wx.StaticLine(parent,-1, size=(-1,3), style=wx.LI_HORIZONTAL)
-    sizer.Add(line, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.ALL, 10)
 
 def HowDidIgetHere():
     '''Show a traceback with calls that brought us to the current location.

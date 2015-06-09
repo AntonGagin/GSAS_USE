@@ -18,14 +18,12 @@ variable is not set, but please do place a docstring here for every used
 config variable explaining what it does. Access these variables using
 :func:`GSASIIpath.GetConfigValue`.
 '''
-
 # </ Anton Gagin
 xyFWHM = []
 '''Temporary
 Estimated FWHM for Histograms
 '''
 # Anton Gagin />
-
 debug = False
 '''Set to True to turn on debugging mode. This enables use of IPython on 
 exceptions and on calls to :func:`GSASIIpath.IPyBreak`. Calls to
@@ -65,4 +63,8 @@ Starting_directory=None
 
 Import_directory=None
 '''Specifies a default location for starting GSAS-II
+'''
+
+wxInspector = None
+'''If set to True, the wxInspector widget is displayed
 '''
