@@ -4,8 +4,6 @@ import os
 import sys
 import shutil
 
-#os.chdir("C:\Users\ang2\SkyDrive\!NIST!\Projects\Python\GSASII\patchSystErrors")
-
 if sys.version[0] == '2':
     shutil.copy("python2/diff_match_patch.py", "diff_match_patch.py")
 if sys.version[0] == '3':
