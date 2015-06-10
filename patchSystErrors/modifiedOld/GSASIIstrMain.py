@@ -832,9 +832,10 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
             plt.plot(x[i], cc_opt[i], linestyle='--', label=lbl)
             plt.legend()
         f_manager = plt.get_current_fig_manager()
-        geom = f_manager.window.geometry()
-        wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
-        f_manager.window.setGeometry(10, 10, wind_dx, wind_dy)
+        if hasattr(f_manager.window, 'SetPosition'):
+            f_manager.window.SetPosition((10,10))
+        if hasattr(f_manager.window, 'move'):
+            f_manager.window.move(10,10)   
         plt.show(block=False)
 # ADDITIVE        
     if np.any(E_beta):
@@ -850,9 +851,10 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
             plt.plot(x[i], bb_opt[i], linestyle='--', label=lbl)
             plt.legend()
         f_manager = plt.get_current_fig_manager()
-        geom = f_manager.window.geometry()
-        wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
-        f_manager.window.setGeometry(200, 10, wind_dx, wind_dy)        
+        if hasattr(f_manager.window, 'SetPosition'):
+            f_manager.window.SetPosition((200,10))
+        if hasattr(f_manager.window, 'move'):
+            f_manager.window.move(200,10)     
         plt.show(block=False)
 # PEAK_SHAPE        
     if np.any(nBlocks):
@@ -885,9 +887,10 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
         plt.plot(x[i], -2*ystd[i], linestyle='-', color="gray")
         plt.legend()
     f_manager = plt.get_current_fig_manager()
-    geom = f_manager.window.geometry()
-    wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
-    f_manager.window.setGeometry(400, 400, wind_dx, wind_dy)    
+    if hasattr(f_manager.window, 'SetPosition'):
+        f_manager.window.SetPosition((400,400))
+    if hasattr(f_manager.window, 'move'):
+        f_manager.window.move(400,400)  
     plt.show(block=False)                        
 # HISTOGRAMS
     fig=plt.figure()
@@ -904,9 +907,10 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
         plt.plot(x[i], yuncor[i], linestyle='-', color="gray", label='uncorrected')
         plt.legend()
     f_manager = plt.get_current_fig_manager()
-    geom = f_manager.window.geometry()
-    wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
-    f_manager.window.setGeometry(800, 200, wind_dx, wind_dy)     
+    if hasattr(f_manager.window, 'SetPosition'):
+        f_manager.window.SetPosition((800,200))
+    if hasattr(f_manager.window, 'move'):
+        f_manager.window.move(800,200)   
     plt.show(block=False)  
 # Anton Gagin />
 
