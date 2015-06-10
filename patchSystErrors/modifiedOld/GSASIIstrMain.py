@@ -115,7 +115,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         G2mv.Dict2Map(parmDict,varyList)
         Rvals['Nobs'] = Histograms['Nobs']
         Rvals['Rwp'] = np.sqrt(Rvals['chisq']/Histograms['sumwYo'])*100.      #to %
-        Rvals['GOF'] = np.sqrt(Rvals['chisq']/(Histograms['Nobs']-len(varyList)))
+        Rvals['GOF'] = np.sqrt(Rvals['chisq']/(Histograms['Nobs']-len(varyList)))  
         print >>printFile,' Number of function calls:',result[2]['nfev'],   \
             ' No. of observations: ',Histograms['Nobs'],' No. of parameters: ',len(varyList),   \
             ' User rejected: ',Histograms['Nrej'],' Sp. gp. extinct: ',Histograms['Next']
@@ -152,6 +152,8 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                         break
 
 # </ Anton Gagin
+    GOF_GSAS = Rvals['GOF']
+    wR_GSAS = Rvals['Rwp']
 # =1. INITIALIZATION=
 # =1.1 Controls=        
 # E_mu: number of splines for multiplicative factor
@@ -722,7 +724,8 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                 yexp[hId] = y[xB:xF]
                 f_opt = np.concatenate((f_opt, -np.multiply(yd[xB:xF], weights)))
                         
-            GOF = np.sqrt(np.sum(result[2]['fvec']**2)/(Histograms['Nobs']-len(varyList)))    
+            GOF_uncor = np.sqrt(np.sum(result[2]['fvec']**2)/(Histograms['Nobs']-len(varyList)))  
+            wR_uncor = np.sqrt(np.sum(result[2]['fvec']**2)/Histograms['sumwYo'])*100.
             optCor = {'dx_opt':dx_opt, 'cc_opt':cc_opt, 'bb_opt':bb_opt}
             
 #####
@@ -749,17 +752,34 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             Rvals['Nobs'] = Histograms['Nobs']
             Rvals['Rwp'] = np.sqrt(Rvals['chisq']/Histograms['sumwYo'])*100.      #to %
             Rvals['GOF'] = np.sqrt(Rvals['chisq']/(Histograms['Nobs']-len(varyList)))
+            GOF_opt = Rvals['GOF']
+            wR_opt = Rvals['Rwp']
 
-            print 'GOF before corrections', GOF
-            print 'GOF after after corrections', Rvals['GOF']
+            print 'GOF standard approach: ', GOF_GSAS
+            print 'GOF before corrections: ', GOF_uncor
+            print 'GOF after after corrections: ', GOF_opt
             
             print >>printFile,' Applying corrections:'
             print >>printFile,' Number of function calls:',result[2]['nfev'],' Number of observations: ',Histograms['Nobs'],' Number of parameters: ',len(varyList)
             print >>printFile,' Refinement time = %8.3fs, %8.3fs/cycle, for %d cycles'%(runtime,runtime/ncyc,ncyc)
-            print >>printFile,' wR = %7.2f%%, chi**2 = %12.6g, reduced chi**2 = %6.2f'%(Rvals['Rwp'],Rvals['chisq'],Rvals['GOF']**2)
+            print >>printFile,' wR = %7.2f%%, chi**2 = %12.6g, GOF = %6.2f'%(Rvals['Rwp'],Rvals['chisq'],Rvals['GOF'])
+            
+            print >>printFile, '\n'  
+            print >>printFile,90*'*'
+            print >>printFile, '*'
+            print >>printFile, '* == SUMMARIZING REFINEMENT RESULTS: =='
+            print >>printFile, '*'
+            print >>printFile, '* standard least-squares approach:        wR = %7.2f%%, reduced chi**2 = %6.2f'%(wR_GSAS,GOF_GSAS**2)
+            print >>printFile, '* Bayesian approach:                      wR = %7.2f%%, reduced chi**2 = %6.2f'%(wR_uncor,GOF_uncor**2)
+            print >>printFile, '* Bayesian approach, optimal corrections: wR = %7.2f%%, reduced chi**2 = %6.2f'%(wR_opt,GOF_opt**2)
+            print >>printFile, '*'
+            print >>printFile,90*'*'
+            print >>printFile, '\n'  
+            
+            
             IfOK = True
             try:
-                covMatrix = result[1]*GOF**2
+                covMatrix = result[1]*GOF_uncor**2
                 sig = np.sqrt(np.diag(covMatrix))
                 if np.any(np.isnan(sig)):
                     print '*** Least squares aborted - some invalid esds possible ***'
@@ -812,7 +832,9 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
             plt.plot(x[i], cc_opt[i], linestyle='--', label=lbl)
             plt.legend()
         f_manager = plt.get_current_fig_manager()
-        f_manager.window.move(10, 10)
+        geom = f_manager.window.geometry()
+        wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
+        f_manager.window.setGeometry(10, 10, wind_dx, wind_dy)
         plt.show(block=False)
 # ADDITIVE        
     if np.any(E_beta):
@@ -828,7 +850,9 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
             plt.plot(x[i], bb_opt[i], linestyle='--', label=lbl)
             plt.legend()
         f_manager = plt.get_current_fig_manager()
-        f_manager.window.move(200, 10)
+        geom = f_manager.window.geometry()
+        wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
+        f_manager.window.setGeometry(200, 10, wind_dx, wind_dy)        
         plt.show(block=False)
 # PEAK_SHAPE        
     if np.any(nBlocks):
@@ -861,7 +885,9 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
         plt.plot(x[i], -2*ystd[i], linestyle='-', color="gray")
         plt.legend()
     f_manager = plt.get_current_fig_manager()
-    f_manager.window.move(400, 400)
+    geom = f_manager.window.geometry()
+    wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
+    f_manager.window.setGeometry(400, 400, wind_dx, wind_dy)    
     plt.show(block=False)                        
 # HISTOGRAMS
     fig=plt.figure()
@@ -878,7 +904,9 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
         plt.plot(x[i], yuncor[i], linestyle='-', color="gray", label='uncorrected')
         plt.legend()
     f_manager = plt.get_current_fig_manager()
-    f_manager.window.move(800, 200)
+    geom = f_manager.window.geometry()
+    wind_x,wind_y,wind_dx,wind_dy = geom.getRect()
+    f_manager.window.setGeometry(800, 200, wind_dx, wind_dy)     
     plt.show(block=False)  
 # Anton Gagin />
 
