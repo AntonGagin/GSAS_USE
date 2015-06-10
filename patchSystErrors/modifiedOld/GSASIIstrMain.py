@@ -350,15 +350,21 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     print "Calculating optimal k_mu:"
                     f = np.multiply(yd[xB:xF], weights)
                     c_opt = 0.2*np.random.rand(E_mu[hId])-0.1  # initial guess
+                    c_opt_tmp = c_opt
                     ccd = np.array([0.005]*E_mu[hId])         # to avoid null argument in log
                     delta = np.dot(ccd.T, np.dot(mDE_mu[hId], ccd))
 #                    print "delta", delta
-                    for i in range(5):
+                    itermax = 20
+                    for i in range(itermax):
                         MM = np.dot(mPhiC[hId].T, mPhiC[hId]) + E_mu[hId]*mDE_mu[hId]/(np.dot((c_opt).T, np.dot(mDE_mu[hId], c_opt)) + delta)
                         b = np.dot(mPhiC[hId].T, f)                     
                         c_opt = linalg.solve(MM, b)
                         print "  iteration #", i, "c_opt", c_opt
-
+                        if ( (np.mean(abs(c_opt_tmp-c_opt)) < 1e-4) and (i > 3)):
+                            print "  converged!"
+                            break
+                        c_opt_tmp = c_opt
+                        
                     cc_opt = np.array(getSpline(x[xB:xF], knots_x, c_opt))
                     dx = x[xB+1]-x[xB]
                     dx = np.diff(x[xB:xF])
@@ -391,15 +397,22 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     print "Calculating optimal k_beta:"
                     f = np.multiply(yd[xB:xF], weights)
                     b_opt = 0.2*np.random.rand(E_beta[hId])-0.1  # initial guess
+                    b_opt_temp = b_opt  # initial guess
                     ccd = np.array([0.005]*E_beta[hId])         # to avoid null argument in log
                     delta = np.dot(ccd.T, np.dot(mDE_beta[hId], ccd))
-
-                    for i in range(5):
+                    
+                    itermax = 20
+                    for i in range(itermax):
                         MM = np.dot(mPhiB[hId].T, mPhiB[hId]) + E_beta[hId]*mDE_beta[hId]/(np.dot((b_opt).T, np.dot(mDE_beta[hId], b_opt)) + delta)
                         b = np.dot(mPhiB[hId].T, f)
                         b_opt = linalg.solve(MM, b)
                         print "  iteration #", i, "b_opt", b_opt
-
+                        if ( (np.mean(abs(b_opt_temp-b_opt)) < 1) and (i > 3)):
+                            print "  converged!"
+                            break
+                        b_opt_temp = b_opt
+                        
+                        
                     bb_opt = np.array(getSpline(x[xB:xF], knots_x, b_opt, der))
                     dx = np.diff(x[xB:xF])
                     dx = np.append(dx,dx[-1])

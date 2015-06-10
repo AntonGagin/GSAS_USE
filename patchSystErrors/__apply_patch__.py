@@ -1,8 +1,10 @@
-#pip install diff-match-patch
+#! python
 
 import os
 import sys
 import shutil
+
+
 
 if sys.version[0] == '2':
     shutil.copy("python2/diff_match_patch.py", "diff_match_patch.py")
