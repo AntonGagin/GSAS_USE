@@ -2,7 +2,6 @@
 #GSASIIobj - data objects for GSAS-II
 ########### SVN repository information ###################
 # $Date: 2015-06-02 15:36:58 -0400 (Tue, 02 Jun 2015) $
-
 # $Author: vondreele $
 # $Revision: 1875 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIobj.py $

@@ -5,7 +5,6 @@
 
 '''
 ########### SVN repository information ###################
-
 # $Date: 2015-05-14 11:31:16 -0400 (Thu, 14 May 2015) $
 # $Author: vondreele $
 # $Revision: 1852 $

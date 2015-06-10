@@ -5,13 +5,10 @@
 '''
 ########### SVN repository information ###################
 # $Date: 2015-06-05 15:21:06 -0400 (Fri, 05 Jun 2015) $
-
 # $Author: vondreele $
 # $Revision: 1880 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIstrMath.py $
 # $Id: GSASIIstrMath.py 1880 2015-06-05 19:21:06Z vondreele $
-
-
 ########### SVN repository information ###################
 import time
 import math
@@ -31,9 +28,6 @@ import GSASIImapvars as G2mv
 import GSASIImath as G2mth
 import GSASIIobj as G2obj
 
-
-
-
 sind = lambda x: np.sin(x*np.pi/180.)
 cosd = lambda x: np.cos(x*np.pi/180.)
 tand = lambda x: np.tan(x*np.pi/180.)
@@ -44,9 +38,6 @@ atan2d = lambda y,x: 180.*np.arctan2(y,x)/np.pi
 ateln2 = 8.0*math.log(2.0)
 twopi = 2.0*np.pi
 twopisq = 2.0*np.pi**2
-
-
-
 
 ################################################################################
 ##### Rigid Body Models
@@ -1237,9 +1228,6 @@ def ApplyXYZshifts(parmDict,varyList):
     :param list varyList: list of variables (not used!)
     :returns: newAtomDict - dictionary of new atomic coordinate names & values; key is parameter shift name
 
-
-
-
     '''
     newAtomDict = {}
     for item in parmDict:
@@ -2040,10 +2028,6 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #            print 'sf calc time: %.3fs'%(time.time()-time0)
         time0 = time.time()
         badPeak = False
-
-
-
-
         for iref,refl in enumerate(refDict['RefList']):
             if 'C' in calcControls[hfx+'histType']:
                 if im:
@@ -2068,10 +2052,6 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #                        print ' ***Error %d,%d,%d missing from Pawley reflection list ***'%(h,k,l)
                         continue
                 Wd,fmin,fmax = G2pwd.getWidthsCW(refl[5+im],refl[6+im],refl[7+im],shl)
-
-
-
-
                 iBeg = np.searchsorted(x,refl[5+im]-fmin)
                 iFin = np.searchsorted(x,refl[5+im]+fmax)
                 if not iBeg+iFin:       #peak below low limit - skip peak
@@ -2085,10 +2065,6 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
                 if Ka2:
                     pos2 = refl[5+im]+lamRatio*tand(refl[5+im]/2.0)       # + 360/pi * Dlam/lam * tan(th)
                     Wd,fmin,fmax = G2pwd.getWidthsCW(pos2,refl[6+im],refl[7+im],shl)
-
-
-
-
                     iBeg = np.searchsorted(x,pos2-fmin)
                     iFin = np.searchsorted(x,pos2+fmax)
                     if not iBeg+iFin:       #peak below low limit - skip peak
@@ -2119,10 +2095,6 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #                        print ' ***Error %d,%d,%d missing from Pawley reflection list ***'%(h,k,l)
                         continue
                 Wd,fmin,fmax = G2pwd.getWidthsTOF(refl[5+im],refl[12+im],refl[13+im],refl[6+im],refl[7+im])
-
-
-
-
                 iBeg = np.searchsorted(x,refl[5+im]-fmin)
                 iFin = np.searchsorted(x,refl[5+im]+fmax)
                 if not iBeg+iFin:       #peak below low limit - skip peak
@@ -2136,11 +2108,6 @@ def getPowderProfile(parmDict,x,varylist,Histogram,Phases,calcControls,pawleyLoo
 #        print 'profile calc time: %.3fs'%(time.time()-time0)
     if badPeak:
         print 'ouch #4 bad profile coefficients yield negative peak width; some reflections skipped' 
-
-
-
-
-
     return yc,yb
     
 def getPowderProfileDerv(parmDict,x,varylist,Histogram,Phases,rigidbodyDict,calcControls,pawleyLookup):
@@ -2860,194 +2827,3 @@ def errRefine(values,HistoPhases,parmDict,varylist,calcControls,pawleyLookup,dlg
         M = np.concatenate((M,np.sqrt(pWt)*pVals))
     return M
                         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
