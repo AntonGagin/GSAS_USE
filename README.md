@@ -8,7 +8,7 @@ This is an extension to the  *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/
 
 *GSAS_USE* addresses the effects of systematic errors in Rietveld refinements. Relevant errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into structural refinements using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. See [Gagin, A. & Levin, I. (2015). *J. Appl. Cryst*. **xx**, xxx-xxx](http://journals.iucr.org/j/) for details.
 
-Current version was tested with *GSAS-II* version 0.2.0, revision 1772.  
+Current version was tested with *GSAS-II* version 0.2.0, revision 1852.  
 For the description of the *GSAS-II* package, see [Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549](http://onlinelibrary.wiley.com/doi/10.1107/S0021889813003531/abstract), or visit their [website](https://subversion.xor.aps.anl.gov/trac/pyGSAS).
 
 ***
@@ -43,7 +43,7 @@ Begin [y/n]?
 
 Type ```y``` and follow the instructions. 
 
-Folder ***originalOld*** contains some of the original *GSAS-II* source files under revision 1772. Folder ***modifiedOld*** contains our modification of these files. The script copies source files from your current revision of *GSAS-II* into ***originalNew*** folder, so before you apply the patch please make sure that *GSAS-II* local folder contains original *GSAS-II*-files, not our modified versions! **\_\_apply_patch\_\_.py** calculates patch from the difference between files in ***originalOld*** and ***modifiedOld*** folders, applies this patch to the files in ***originalNew*** folder, and writes results to ***modifiedNew*** folder (also to the *GSAS-II* local folder.)
+Folder ***originalOld*** contains some of the original *GSAS-II* source files under revision 1852. Folder ***modifiedOld*** contains our modification of these files. The script copies source files from your current revision of *GSAS-II* into ***originalNew*** folder, so before you apply the patch please make sure that *GSAS-II* local folder contains original *GSAS-II*-files, not our modified versions! **\_\_apply_patch\_\_.py** calculates patch from the difference between files in ***originalOld*** and ***modifiedOld*** folders, applies this patch to the files in ***originalNew*** folder, and writes results to ***modifiedNew*** folder (also to the *GSAS-II* local folder.)
 
 ##<a name="use"></a> Usage
 After patch is  completed, start *GSAS-II* normally. In **Controls** menu indicate correction parameters. If several histograms are refined simultaneously, indicate correction parameters, divided by commas, in corresponding order. To use similar value for all histograms, put a single number. Set $E\_mu$, $E\_beta$ or $s$ to zero, if you do not want to apply corresponding correction (multiplicative, additive, or peak-shape.) 
