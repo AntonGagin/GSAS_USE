@@ -1430,10 +1430,10 @@ def UpdateControls(G2frame,data):
     if 'corrParam l_deltaDivN' not in data:
         data['corrParam l_deltaDivN'] = "none"       
         # stdev sigma_delta can be calculated as l_delta/l_deltaDivN      
-#    if 'EstimateKMu' not in data:
-    data['EstimateKMu'] = False  
-#    if 'EstimateKBeta' not in data:
-    data['EstimateKBeta'] = False  
+    if 'EstimateKMu' not in data:
+        data['EstimateKMu'] = False  
+    if 'EstimateKBeta' not in data:
+        data['EstimateKBeta'] = False  
     if 'doIter' not in data:
         data['doIter'] = False   
 # Anton Gagin />  
@@ -1597,6 +1597,8 @@ def UpdateControls(G2frame,data):
         def OnMargKMu(event):
             data['corrParam k_mu'] = MargKMu.GetValue()
             MargKMu.SetValue(data['corrParam k_mu'])
+            data['EstimateKMu'] = False
+            OptKMu.SetValue(data['EstimateKMu'])
 #            wx.CallAfter(UpdateControls,G2frame,data)         
         def OnOptKMu(event):
             data['EstimateKMu'] = OptKMu.GetValue()
@@ -1640,6 +1642,8 @@ def UpdateControls(G2frame,data):
         def OnMargKBeta(event):
             data['corrParam k_beta'] = MargKBeta.GetValue()
             MargKBeta.SetValue(data['corrParam k_beta'])
+            data['EstimateKBeta'] = False
+            OptKBeta.SetValue(data['EstimateKBeta'])            
 #            wx.CallAfter(UpdateControls,G2frame,data)         
         def OnOptKBeta(event):
             data['EstimateKBeta'] = OptKBeta.GetValue()
