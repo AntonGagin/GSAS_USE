@@ -189,7 +189,8 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         l_delta = [np.array(l_delta[i])/divN[i] for i in range(nHist)]     
     else:        
         l_delta = [np.array(float(p)) for p in l_delta]*nHist 
-                
+
+    
     sigma_delta = Controls['corrParam sigma_delta'].split(',')
     if sigma_delta[0] == 'none':
         divN = Controls['corrParam l_deltaDivN'].split(',')
@@ -471,12 +472,14 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     
                     ld_func = interp1d(xL_delta[hId], l_delta[hId])
                     ld_func = extrap1d(ld_func)
-                    ld = ld_func(x[xB:xF])       
+                    ld = ld_func(x[xB:xF])  
+
                     ld = np.sqrt(2.)*np.array(ld)
                     ld[np.isnan(ld)] = np.mean(l_delta[hId])                    
                     
                     p = np.polyfit(x[xB:xF], ld, 3)
                     p = np.poly1d(p)
+                    p[p < 0] = 0.001
                     ld = p(x[xB:xF])
                     ld2 = [0.5*p**2. for p in ld]
                      
@@ -487,6 +490,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     
                     p = np.polyfit(x[xB:xF], sd, 3)
                     p = np.poly1d(p)
+                    p[p < 0] = 0.001
                     sd = p(x[xB:xF])      
                     sd2 = [p**2. for p in sd]   
                     
