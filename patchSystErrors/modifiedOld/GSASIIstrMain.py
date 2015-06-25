@@ -121,6 +121,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             ' User rejected: ',Histograms['Nrej'],' Sp. gp. extinct: ',Histograms['Next']
         print >>printFile,' Refinement time = %8.3fs, %8.3fs/cycle, for %d cycles'%(runtime,runtime/ncyc,ncyc)
         print >>printFile,' wR = %7.2f%%, chi**2 = %12.6g, GOF = %6.2f'%(Rvals['Rwp'],Rvals['chisq'],Rvals['GOF'])
+                
         IfOK = True
         try:
             covMatrix = result[1]*Rvals['GOF']**2
@@ -150,8 +151,9 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                         print 'Removing parameter: ',varyList[ipvt-1]
                         del(varyList[ipvt-1])
                         break
-
 # </ Anton Gagin
+    val_GSAS = result[0]
+    std_GSAS = sig       
     GOF_GSAS = Rvals['GOF']
     wR_GSAS = Rvals['Rwp']
 # =1. INITIALIZATION=
@@ -477,10 +479,12 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     ld = np.sqrt(2.)*np.array(ld)
                     ld[np.isnan(ld)] = np.mean(l_delta[hId])                    
                     
+
                     p = np.polyfit(x[xB:xF], ld, 3)
                     p = np.poly1d(p)
-                    p[p < 0] = 0.001
+                    p[p < 1e-6] = np.min(l_delta[hId])
                     ld = p(x[xB:xF])
+                    ld[ld < 1e-6] = np.min(l_delta[hId])            
                     ld2 = [0.5*p**2. for p in ld]
                      
                     sd_func = interp1d(xL_delta[hId], sigma_delta[hId])
@@ -490,8 +494,9 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     
                     p = np.polyfit(x[xB:xF], sd, 3)
                     p = np.poly1d(p)
-                    p[p < 0] = 0.001
-                    sd = p(x[xB:xF])      
+                    p[p < 1e-6] = np.min(sigma_delta[hId])
+                    sd = p(x[xB:xF])     
+                    sd[sd < 1e-6] = np.min(sigma_delta[hId])                  
                     sd2 = [p**2. for p in sd]   
                     
                     for iBlock in range(nBlocks[hId]):
@@ -783,7 +788,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             
             IfOK = True
             try:
-                covMatrix = result[1]*GOF_uncor**2
+                covMatrix = result[1]*GOF_GSAS**2
                 sig = np.sqrt(np.diag(covMatrix))
                 if np.any(np.isnan(sig)):
                     print '*** Least squares aborted - some invalid esds possible ***'
@@ -811,12 +816,25 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
       
         histNames=G2stIO.GetHistogramNames(GPXfile,['PWDR',])    
         plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, dx_opt, ydiff, ystd, yexp, ycor, yuncor)                   
-        
+      
+      
+        val_Bayes = result[0]
+        std_Bayes = sig
+        rownames = np.array(varyList)
+        printFileCompare = open(ospath.splitext(GPXfile)[0]+'-compare.lst','w')
+        header = '''    Name   val(GSAS) sig(GSAS) val(Bayes) sig(Bayes)'''       
+        dat = np.array([val_GSAS, std_GSAS, val_Bayes, std_Bayes  ]).T
+        print >>printFileCompare, header
+        for i in range(len(rownames)):
+            print >>printFileCompare, '%10s % 1.2e % 1.2e % 1.2e % 1.2e' % (rownames[i], dat[i,0], dat[i,1], dat[i,2], dat[i,3])        
+        printFileCompare.close()
+
+
         for i in range(nHist):
             header = histNames[i]+'''\n        x        mult         add      dtheta        resid       stdev        yexp        ycor      yuncor'''
             printCorFile = ospath.splitext(GPXfile)[0]+'_cor_'+str(i)+'.txt'
             dat = np.array([x[i], cc_opt[i], bb_opt[i], dx_opt[i], ydiff[i], ystd[i], yexp[i], ycor[i], yuncor[i]])        
-            np.savetxt(fname=printCorFile, X=dat.T, header=header, fmt='%1.5e')
+            np.savetxt(fname=printCorFile, X=dat.T, header=header, fmt='% 1.5e')
         
     G2stMth.GetFobsSq(Histograms,Phases,parmDict,calcControls)
     return IfOK,Rvals,result,covMatrix,sig

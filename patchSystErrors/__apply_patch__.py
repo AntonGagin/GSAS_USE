@@ -36,7 +36,7 @@ begin = raw_input("Begin [y/n]?")
 
 if begin=='y':
     fnames = ['GSASIIstrMain.py', 'GSASIIstrMath.py', 'GSASIIobj.py', \
-              'GSASIImath.py', 'GSASIIgrid.py', 'config_example.py']   
+              'GSASIImath.py', 'GSASIIgrid.py', 'GSASII.py', 'config_example.py']   
     fnames0 = ['../'+name for name in fnames]
     fnames1 = ['originalOld/'+name for name in fnames]
     fnames2 = ['modifiedOld/'+name for name in fnames]
