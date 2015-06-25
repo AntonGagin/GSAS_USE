@@ -2317,7 +2317,7 @@ class GSASII(wx.Frame):
                 self.PatternTree.SelectItem(Id)
                 os.chdir(dlg.GetDirectory())           # to get Mac/Linux to change directory!
         finally:
-            dlg.Destroy()
+            dlg.Destroy()  
     def OnImageRead(self,event):
         'Called to read in an image in any known format'
         self.CheckNotebook()

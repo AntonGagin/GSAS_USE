@@ -2330,6 +2330,7 @@ class GSASII(wx.Frame):
                 os.chdir(dlg.GetDirectory())           # to get Mac/Linux to change directory!
         finally:
             dlg.Destroy()
+
 # </ Anton Gagin        
     def OnLstRead(self,event):
         import webbrowser
@@ -2348,6 +2349,7 @@ class GSASII(wx.Frame):
         else: 
             print 'No such file yet!'        
 # Anton Gagin />        
+
     def OnImageRead(self,event):
         'Called to read in an image in any known format'
         self.CheckNotebook()
