@@ -43,7 +43,12 @@ Begin [y/n]?
 
 Type ```y``` and follow the instructions. 
 
-Folder ***originalOld*** contains some of the original *GSAS-II* source files under revision 1852. Folder ***modifiedOld*** contains our modification of these files. The script copies the source files from your current revision of *GSAS-II* into the ***originalNew*** folder. Before applying the patch please ensure that the local folder with *GSAS-II* contains the original *GSAS-II*-files and not the modified versions! **\_\_apply\_patch\_\_.py** calculates the patch from the difference between the files in the ***originalOld*** and ***modifiedOld*** folders, applies this patch to the files in the ***originalNew*** folder, and writes the results to the ***modifiedNew*** folder (as well as to the *GSAS-II* local folder.) To restore the original *GSAS-II*-files, run **\_\_restore\_original\_\_.py**.
+Folder ***originalOld*** contains some of the original *GSAS-II* source files under revision 1852. Folder ***modifiedOld*** contains our modification of these files. The script copies the source files from your current revision of *GSAS-II* into the ***originalNew*** folder. Before applying the patch please ensure that the local folder with *GSAS-II* contains the original *GSAS-II*-files and not the modified versions! **\_\_apply\_patch\_\_.py** calculates the patch from the difference between the files in the ***originalOld*** and ***modifiedOld*** folders, applies this patch to the files in the ***originalNew*** folder, and writes the results to the ***modifiedNew*** folder (as well as to the *GSAS-II* local folder.) 
+
+To restore the original *GSAS-II*-files, run **\_\_restore\_original\_\_.py**.
+
+To update patch, run **\_\_update\_patch\_\_.py**.
+
 
 ##<a name="use"></a> Usage
 After the patch has been  applied, start *GSAS-II* normally. In **Controls** menu specify the correction parameters. If several histograms are refined simultaneously, list these parameters, separated by commas, in the order corresponding to the order of the histograms. If you wish to the same value of the parameter for all the histograms, enter a single number. Set $E\_mu$, $E\_beta$ or $s$ to zero, if you do not want to apply a particular correction (multiplicative, additive, or peak-shape.) 
