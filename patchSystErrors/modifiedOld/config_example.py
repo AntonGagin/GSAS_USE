@@ -19,7 +19,7 @@ config variable explaining what it does. Access these variables using
 :func:`GSASIIpath.GetConfigValue`.
 '''
 # </ Anton Gagin
-xyFWHM = []
+xyFWHM = []  
 '''Temporary
 Estimated FWHM for Histograms
 '''

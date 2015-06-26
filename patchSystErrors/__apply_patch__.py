@@ -1,5 +1,5 @@
 #! python
-#vesrion 1.0-1
+#vesrion 1.0-2
 
 import os
 import sys
