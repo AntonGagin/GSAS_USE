@@ -163,7 +163,10 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 # k_mu: prior parameter for multiplicative factor
     E_mu = Controls['corrParam E_mu'].split(',')
     E_mu = [int(p) for p in E_mu]*nHist
-    optK_mu = Controls['EstimateKMu']
+    if 'EstimateKMu' in Controls:
+        optK_mu = Controls['EstimateKMu']
+    else: 
+        optK_mu = False
     k_mu = [0]*nHist   
     if(not optK_mu):
         k_mu = Controls['corrParam k_mu'].split(',')
@@ -173,7 +176,10 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 # k_beta: prior parameter for additive factor
     E_beta = Controls['corrParam E_beta'].split(',')
     E_beta = [int(p) for p in E_beta]*nHist
-    optK_beta = Controls['EstimateKBeta']
+    if 'EstimateKBeta' in Controls:
+        optK_beta = Controls['EstimateKBeta']
+    else: 
+        optK_beta = False
     k_beta = [0]*nHist   
     if(not optK_beta):
         k_beta = Controls['corrParam k_beta'].split(',')
@@ -336,7 +342,6 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 
 #####        
 # =2.1 Marginalization over multiplicative error=
-            print "\n=== Histogram #", hId+1, "==="
             if (E_mu[hId]):  
                 x_min = x[xB]
                 x_max = x[xF-1]
