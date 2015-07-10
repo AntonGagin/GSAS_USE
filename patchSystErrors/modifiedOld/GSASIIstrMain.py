@@ -342,6 +342,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 
 #####        
 # =2.1 Marginalization over multiplicative error=
+            print "\n=== Histogram #", hId+1, "==="
             if (E_mu[hId]):  
                 x_min = x[xB]
                 x_max = x[xF-1]
