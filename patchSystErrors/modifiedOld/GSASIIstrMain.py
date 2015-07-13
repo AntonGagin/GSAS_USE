@@ -479,14 +479,19 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     l_delta[hId] = np.array(l_delta[hId])
                     sigma_delta[hId] = np.array(sigma_delta[hId])            
                     
+                    nanInd = np.where(np.isnan(l_delta[hId]))
+                    xL_delta[hId] = np.delete(xL_delta[hId], nanInd)
+                    l_delta[hId] = np.delete(l_delta[hId], nanInd)
+                    sigma_delta[hId] = np.delete(sigma_delta[hId], nanInd)
+                    
                     ld_func = interp1d(xL_delta[hId], l_delta[hId])
                     ld_func = extrap1d(ld_func)
                     ld = ld_func(x[xB:xF])  
 
                     ld = np.sqrt(2.)*np.array(ld)
                     ld[np.isnan(ld)] = np.mean(l_delta[hId])                    
+                                        
                     
-
                     p = np.polyfit(x[xB:xF], ld, 3)
                     p = np.poly1d(p)
                     p[p < 1e-6] = np.min(l_delta[hId])
