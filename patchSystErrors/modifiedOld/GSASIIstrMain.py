@@ -211,6 +211,9 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 # nBlocks: number of blocks s to use for each Histogram 
     nBlocks = Controls['corrParam num blocks s'].split(',')
     nBlocks = [int(p) for p in nBlocks]*nHist
+
+# Markov chain Monte Carlo
+    doMCMC = Controls['doMCMC']
     
     if(np.any(E_beta) or np.any(E_mu) or np.any(nBlocks)):
         print "Bayesian-corrected refinement"
@@ -655,6 +658,48 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             addCor={'doCor':True, 'mPhiB':mPhiBTotal, 'mInvMB':mInvMBTotal}      
             
         while True:            
+####                
+# =3.0 MCMC=
+            if doMCMC:
+                print 'Running MCMC...'
+                nwalkers = int(Controls['nwalkers'])
+                nIterMCMC = int(Controls['nIterMCMC'])
+                if (nwalkers==0): nwalkers=50
+                if (nIterMCMC==0): nIterMCMC=100
+                sampler = G2mth.MarginalizedMCMC(G2stMth.errRefine,values, 2*sig,
+                                    peakCor=peakCor, multCor=multCor, addCor=addCor,
+                                    args=([Histograms,Phases,restraintDict,rigidbodyDict],
+                                    parmDict,varyList,calcControls,pawleyLookup,dlg), 
+                                    nwalkers=nwalkers, nIter=nIterMCMC, Print=False)
+                ndim=len(sig)     
+                nToOmit = min(nIterMCMC/2, 50)                
+                samples = sampler.chain[:, nToOmit:, :].reshape((-1, ndim))                                          
+                bins = min(nIterMCMC*nwalkers/5, 20)
+                fnametxt = ospath.splitext(GPXfile)[0]+'-MCMC.txt'
+                np.savetxt(fnametxt, sampler.flatchain, header=str(varyList))
+                
+                try:
+                    import triangle
+                    fig = triangle.corner(samples, bins=bins, labels=varyList, 
+                                          quantiles=[0.16, 0.5, 0.84])
+                    fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
+                    fig.savefig(fnamepng)
+                except:
+                    print 'Cannot allocate memory for the image. Image saved as', fnamepng
+                
+                if 'Jacobian' in Controls['deriv type']:            
+                    result = so.leastsq(G2stMth.errRefine,values,Dfun=G2stMth.dervRefine,full_output=True,
+                        ftol=Ftol,col_deriv=True,factor=Factor,
+                        args=([Histograms,Phases,restraintDict,rigidbodyDict],parmDict,varyList,calcControls,pawleyLookup,dlg))
+                elif 'Hessian' in Controls['deriv type']:
+                    result = G2mth.HessianLSQ(G2stMth.errRefine,values,Hess=G2stMth.HessRefine,ftol=Ftol,maxcyc=maxCyc,Print=ifPrint,
+                        args=([Histograms,Phases,restraintDict,rigidbodyDict],parmDict,varyList,calcControls,pawleyLookup,dlg))
+                else:           #'numeric'
+                    result = so.leastsq(G2stMth.errRefine,values,full_output=True,ftol=Ftol,epsfcn=1.e-8,factor=Factor,
+                        args=([Histograms,Phases,restraintDict,rigidbodyDict],parmDict,varyList,calcControls,pawleyLookup,dlg))
+    
+                
+# =3.1 Bayesian fit =
             maxCyc = Controls['max cyc']
             result = G2mth.MarginalizedLSQ(G2stMth.errRefine,values,Jac=G2stMth.dervRefine,  
                 peakCor=peakCor, multCor=multCor, addCor=addCor, optCor={},
@@ -663,6 +708,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                 
             G2stMth.Values2Dict(parmDict, varyList, result[0])
             G2mv.Dict2Map(parmDict,varyList)
+     
             (x, b_opt, bb_opt, c_opt, cc_opt, dx_opt, cb_opt,
                 ydiff, ystd, yexp, yuncor, ycor) =  ([0]*nHist for i in range(12))
             f_opt  = []                        
@@ -690,7 +736,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                 weights = list(wtFactor*w)
                 weights = ma.sqrt(weights[xB:xF])
                 f = np.multiply(yd[xB:xF], weights)
-# =3.1 Calculate optimal corrections=    
+# =3.2 Calculate optimal corrections=    
                 c_opt[hId] = np.zeros(shape=(0,))
                 cc_opt[hId] = [1.]*histLen[hId]  # null correction is 1
                 b_opt[hId] = np.zeros(shape=(0,))
@@ -726,7 +772,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     dx_opt[hId] = blockMult(mK_temp[hId], nBlocks[hId], sBlock[hId], y2)
                     dx_opt[hId] = np.multiply(1.0/yp[hId], dx_opt[hId])   
          
-# =3.2 Apply optimal corrections=    
+# =3.3 Apply optimal corrections=    
                 yuncor[hId] = np.zeros(shape=(xF-xB))
                 yuncor[hId][0:(xF-xB)] = yc[xB:xF]            
                 x_cor = x[hId]-dx_opt[hId]
@@ -760,6 +806,9 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                     parmDict,varyList,calcControls,pawleyLookup,dlg))         
                 G2stMth.Values2Dict(parmDict, varyList, result[0])
                 G2mv.Dict2Map(parmDict,varyList)
+                
+
+                
 ####                
 # =5 SAVING RESULTS=
             result[2]['fvec'] = f_opt
@@ -847,7 +896,43 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             printCorFile = ospath.splitext(GPXfile)[0]+'_cor_'+str(i)+'.txt'
             dat = np.array([x[i], cc_opt[i], bb_opt[i], dx_opt[i], ydiff[i], ystd[i], yexp[i], ycor[i], yuncor[i]])        
             np.savetxt(fname=printCorFile, X=dat.T, header=header, fmt='% 1.5e')
+    
+    elif(doMCMC):
+        print 'Running MCMC...'
+        nwalkers = int(Controls['nwalkers'])
+        nIterMCMC = int(Controls['nIterMCMC'])
+        if (nwalkers==0): nwalkers=50
+        if (nIterMCMC==0): nIterMCMC=100
+        sampler = G2mth.StandardMCMC(G2stMth.errRefine,values, 2*sig,
+                            args=([Histograms,Phases,restraintDict,rigidbodyDict],
+                            parmDict,varyList,calcControls,pawleyLookup,dlg), 
+                            nwalkers=nwalkers, nIter=nIterMCMC, Print=False)
+        ndim=len(sig)     
+        nToOmit = min(nIterMCMC/2, 50)                
+        samples = sampler.chain[:, nToOmit:, :].reshape((-1, ndim))                                          
+        bins = min(nIterMCMC*nwalkers/5, 20)
+        fnametxt = ospath.splitext(GPXfile)[0]+'-MCMC.txt'
+        np.savetxt(fnametxt, sampler.flatchain, header=str(varyList)) 
+        try:
+            import triangle
+            fig = triangle.corner(samples, bins=bins, labels=varyList, 
+                                  quantiles=[0.16, 0.5, 0.84])
+            fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
+            fig.savefig(fnamepng)
+        except:
+            print 'Cannot allocate memory for the image. Image saved as', fnamepng
         
+        if 'Jacobian' in Controls['deriv type']:            
+            result = so.leastsq(G2stMth.errRefine,values,Dfun=G2stMth.dervRefine,full_output=True,
+                ftol=Ftol,col_deriv=True,factor=Factor,
+                args=([Histograms,Phases,restraintDict,rigidbodyDict],parmDict,varyList,calcControls,pawleyLookup,dlg))
+        elif 'Hessian' in Controls['deriv type']:
+            result = G2mth.HessianLSQ(G2stMth.errRefine,values,Hess=G2stMth.HessRefine,ftol=Ftol,maxcyc=maxCyc,Print=ifPrint,
+                args=([Histograms,Phases,restraintDict,rigidbodyDict],parmDict,varyList,calcControls,pawleyLookup,dlg))
+        else:           #'numeric'
+            result = so.leastsq(G2stMth.errRefine,values,full_output=True,ftol=Ftol,epsfcn=1.e-8,factor=Factor,
+                args=([Histograms,Phases,restraintDict,rigidbodyDict],parmDict,varyList,calcControls,pawleyLookup,dlg))
+                        
     G2stMth.GetFobsSq(Histograms,Phases,parmDict,calcControls)
     return IfOK,Rvals,result,covMatrix,sig
 

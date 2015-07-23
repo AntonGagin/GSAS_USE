@@ -1436,6 +1436,14 @@ def UpdateControls(G2frame,data):
         data['EstimateKBeta'] = False  
     if 'doIter' not in data:
         data['doIter'] = False   
+# MCMC controls       
+    if 'doMCMC' not in data:
+        data['doMCMC'] = False       
+    if 'nwalkers' not in data:
+        data['nwalkers'] = str(0)   
+    if 'nIterMCMC' not in data:
+        data['nIterMCMC'] = str(0)  
+        
 # Anton Gagin />  
      
     
@@ -1770,7 +1778,49 @@ def UpdateControls(G2frame,data):
         DoIter.SetValue(data['doIter'])
         MargIterSizer.Add(DoIter,0,WACV)  
         
-        return MargIterSizer           
+        return MargIterSizer     
+
+
+    def MargMCMCSizer():
+# MCMC controls   
+        def OnDoMCMC(event):
+            data['doMCMC'] = doMCMC.GetValue()
+        
+        MargMCMCSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)        
+        doMCMC = wx.CheckBox(G2frame.dataDisplay,-1,label=' run sampler for MCMC?')
+        doMCMC.Bind(wx.EVT_CHECKBOX, OnDoMCMC)
+        doMCMC.SetValue(data['doMCMC'])
+        MargMCMCSizer.Add(doMCMC,0,WACV)      
+                
+        return MargMCMCSizer
+        
+        
+    def MargMCMCControlsSizer():
+# MCMC controls 2
+        def OnNWalkers(event):
+            data['nwalkers'] = NWalkers.GetValue()
+            NWalkers.SetValue(data['nwalkers'])  
+        def OnNIterMCMC(event):
+            data['nIterMCMC'] = nIterMCMC.GetValue()
+            nIterMCMC.SetValue(data['nIterMCMC'])     
+        
+        MargMCMCControlsSizer = wx.FlexGridSizer(cols=4,vgap=5,hgap=5)                
+        MargMCMCControlsSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Number of Goodman&Weare walkers: '),0,WACV)
+        NWalkers = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['nwalkers'],style=wx.TE_PROCESS_ENTER)
+        NWalkers.SetValue(data['nwalkers'])
+        NWalkers.Bind(wx.EVT_TEXT_ENTER, OnNWalkers)
+        NWalkers.Bind(wx.EVT_KILL_FOCUS, OnNWalkers)
+        MargMCMCControlsSizer.Add(NWalkers,0,WACV)     
+        
+        MargMCMCControlsSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Number of steps: '),0,WACV)
+        nIterMCMC = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['nIterMCMC'],style=wx.TE_PROCESS_ENTER)
+        nIterMCMC.SetValue(data['nIterMCMC'])
+        nIterMCMC.Bind(wx.EVT_TEXT_ENTER, OnNIterMCMC)
+        nIterMCMC.Bind(wx.EVT_KILL_FOCUS, OnNIterMCMC)
+        MargMCMCControlsSizer.Add(nIterMCMC,0,WACV)   
+                
+        return MargMCMCControlsSizer
+        
 # Anton Gagin />       
         
     def AuthSizer():
@@ -1826,7 +1876,13 @@ def UpdateControls(G2frame,data):
     mainSizer.Add(MargShapeSizer())
     mainSizer.Add((5,5),0)    
     mainSizer.Add(MargIterSizer())
-    mainSizer.Add((5,5),0)
+    mainSizer.Add((10,10),0)
+    mainSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' MCMC ensemble sampler:'),0,WACV)    
+    mainSizer.Add(MargMCMCSizer())
+    mainSizer.Add((5,5),0) 
+    mainSizer.Add(MargMCMCControlsSizer())
+    mainSizer.Add((5,5),0) 
+    
     
 # Anton Gagin />    
     mainSizer.Layout()    

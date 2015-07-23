@@ -293,7 +293,82 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
             psing = list(np.where(np.diag(nl.qr(Amat)[1]) < 1.e-14)[0])
         return [x0,None,{'num cyc':icycle,'fvec':dY,'nfev':nfev,'lamMax':lamMax,'psing':psing, 'rssCor':chisq1}]    
         
-# Anton Gagin />        
+
+##########################################################
+##########################################################
+
+def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(), nwalkers=50, nIter=100, Print=False):
+
+    import emcee
+    
+    def lnprob(x, peakCor, multCor, addCor, args): 
+        dY = func(x,*args)        
+        CdY = covMatrixMultVec(peakCor, multCor, addCor, dY) # covMatrix*dY
+        chisq0 = np.dot(dY, CdY)  # new residual = dY.T*covMatrix*dY
+        return -chisq0/2.0
+
+    x0 = np.array(x0, ndmin=1)      #might be redundant?
+    x0sig = np.array(x0sig, ndmin=1)      #might be redundant?
+    ndim = len(x0)
+    if type(args) != type(()):
+        args = (args,)
+
+    p0 = [np.random.rand(ndim) for i in xrange(nwalkers)]
+    for i in range(nwalkers):
+        for j in range(ndim):
+            p0[i][j] = (2.*p0[i][j]-1.)*x0sig[j] + x0[j]
+    
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[peakCor, multCor, addCor, args])
+
+    pos, prob, state = sampler.run_mcmc(p0, 10)
+    sampler.reset()
+    sampler.run_mcmc(pos, nIter, rstate0=state)
+        
+    print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
+    print("Autocorrelation time:", sampler.get_autocorr_time())
+
+    return sampler    
+
+
+
+##########################################################
+##########################################################
+
+def StandardMCMC(func, x0, x0sig, args=(), nwalkers=50, nIter=100, Print=False):
+
+    import emcee
+    
+    def lnprob(x, args): 
+        dY = func(x,*args)        
+        chisq0 = np.sum(dY**2)  # new residual = dY.T*covMatrix*dY
+        return -chisq0/2.0
+
+    x0 = np.array(x0, ndmin=1)      #might be redundant?
+    x0sig = np.array(x0sig, ndmin=1)      #might be redundant?
+    ndim = len(x0)
+    if type(args) != type(()):
+        args = (args,)
+
+    p0 = [np.random.rand(ndim) for i in xrange(nwalkers)]
+    for i in range(nwalkers):
+        for j in range(ndim):
+            p0[i][j] = (2.*p0[i][j]-1.)*x0sig[j] + x0[j]
+    
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[args])
+
+    pos, prob, state = sampler.run_mcmc(p0, 10)
+    sampler.reset()
+    sampler.run_mcmc(pos, nIter, rstate0=state)
+        
+    print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
+    print("Autocorrelation time:", sampler.get_autocorr_time())
+
+    return sampler    
+        
+        
+# Anton Gagin />   
+
+        
     
 ################################################################################
 ##### Hessian least-squares Levenberg-Marquardt routine
