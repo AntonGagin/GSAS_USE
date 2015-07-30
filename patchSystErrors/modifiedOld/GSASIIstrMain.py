@@ -678,14 +678,14 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                 fnametxt = ospath.splitext(GPXfile)[0]+'-MCMC.txt'
                 np.savetxt(fnametxt, sampler.flatchain, header=str(varyList))
                 
+                fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
+                import triangle
+                fig = triangle.corner(samples, bins=bins, labels=varyList, 
+                                      quantiles=[0.16, 0.5, 0.84])
                 try:
-                    import triangle
-                    fig = triangle.corner(samples, bins=bins, labels=varyList, 
-                                          quantiles=[0.16, 0.5, 0.84])
-                    fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
                     fig.savefig(fnamepng)
                 except:
-                    print 'Cannot allocate memory for the image. Image saved as', fnamepng
+                    print 'Cannot open image. Image saved as', fnamepng
                 
                 if 'Jacobian' in Controls['deriv type']:            
                     result = so.leastsq(G2stMth.errRefine,values,Dfun=G2stMth.dervRefine,full_output=True,
@@ -913,14 +913,15 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         bins = min(nIterMCMC*nwalkers/5, 20)
         fnametxt = ospath.splitext(GPXfile)[0]+'-MCMC.txt'
         np.savetxt(fnametxt, sampler.flatchain, header=str(varyList)) 
+
+        fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
+        import triangle
+        fig = triangle.corner(samples, bins=bins, labels=varyList, 
+                              quantiles=[0.16, 0.5, 0.84])
         try:
-            import triangle
-            fig = triangle.corner(samples, bins=bins, labels=varyList, 
-                                  quantiles=[0.16, 0.5, 0.84])
-            fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
             fig.savefig(fnamepng)
         except:
-            print 'Cannot allocate memory for the image. Image saved as', fnamepng
+            print 'Cannot open image. Image saved as', fnamepng
         
         if 'Jacobian' in Controls['deriv type']:            
             result = so.leastsq(G2stMth.errRefine,values,Dfun=G2stMth.dervRefine,full_output=True,
