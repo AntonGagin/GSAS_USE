@@ -4,11 +4,13 @@ author: "Anton Gagin and Igor Levin"
 output: pdf_document
 ---
 
+**Please open README.pdf to see the formulas**
+
 This is an extension to the  *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/pyGSAS)* Rietveld package *GSAS_USE* (Bayesian Statistics Approach to Accounting for <b>U</b>nknown <b>S</b>ystematic <b>E</b>rrors), written and maintained by Anton Gagin (<anton.gagin@nist.gov>, <av.gagin@gmail.com>.) 
 
-*GSAS_USE* addresses the effects of systematic errors in Rietveld refinements. The errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into  using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. See [Gagin, A. & Levin, I. (2015). *Accounting for Unknown Systematic Errors in Rietveld Refinements: A Bayesian Statistics Approach.* *J. Appl. Cryst*. **xx**, xxx-xxx](http://journals.iucr.org/j/) (in progress) for details.
+*GSAS_USE* addresses the effects of systematic errors in Rietveld refinements. The errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into  using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. See [Gagin, A. & Levin, I. (2015). *Accounting for Unknown Systematic Errors in Rietveld Refinements: A Bayesian Statistics Approach.* *J. Appl. Cryst*. **48**, 1201-1211](http://journals.iucr.org/j/issues/2015/04/00/po5042/stdsup.html) for details.
 
-The current version has been tested with *GSAS-II* version 0.2.0, revision 1852.  
+The current version has been tested with *GSAS-II* version 0.2.0, revision 1884.  
 For details of the *GSAS-II* package, see [Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549](http://onlinelibrary.wiley.com/doi/10.1107/S0021889813003531/abstract), or visit their [website](https://subversion.xor.aps.anl.gov/trac/pyGSAS).
 
 ***
@@ -57,7 +59,7 @@ If you select *Estimate optimal k\_mu?*, the *Prior factor k\_mu* field will be 
 
 If you click on *Correlation length l\_delta* field, the  *estimate it as FWHM /* field will be set to ```none```, and vice versa. The same is true for the fields *Stdev sigma\_delta* and  *estimate it as l\_delta/*.
 
-To start a Bayesian-corrected refinement, select **Calculate/Refine** in the *GSAS-II* data tree window.
+To start a Bayesian-corrected refinement, select **Calculate/Refine** in the *GSAS-II* data tree window. To see refinement results, select **Data/Open .lst file** or **Data/Compare standard and Bayesian fits**.
 
 ##<a name="describe"></a> Description
 
@@ -86,13 +88,20 @@ The scaling parameters $sigma\_delta$ and $l\_delta$ describe the standard devia
 $sigma\_delta$ can be estimated from the $l\_delta$ value(s) as $l\_delta/p2$, where $p2$ can be any real number.  
 To reduce the computational complexity (e.g. one may get an out-of-memory error for extremely large histograms) and speed the calculations, the fitted x-range is divided into $s$ independent segments.
 * The iterative procedure works as follows:
-	* a standard fit is performed
+  * a standard fit is performed
 	* a Bayesian-corrected fit is performed
 	* the optimal corrections are calculated and applied to the experimental data
 	* a Bayesian-corrected fit is repeated
   
 The second Bayesian-corrected fit is prone to overfitting becouse it uses the same correction parameters as have been already applied to the data. Therefore, we advise to limit the use of the iterative option to cases of large systematic errors.
 
+* If your select *run sampler for MCMC?* the patch will do the following:
+	* perform a standard fit
+	* call the [*emcee*](http://dan.iel.fm/emcee/current/) library and run the Goodman & Weare's Affine Invariant MCMC sampler
+	* perform a Bayesian-corrected fit to obtain the final estimations
+  
+Results of the MCMC sampler will be saved in a text file and as a picture in a project folder. Prior to using this feature make sure that *emcee* library is installed.
+  
 ## <a name="example"></a>Example
 * [Download](https://subversion.xray.aps.anl.gov/pyGSAS/trunk/help/gsasII.html#Tutorials) the example files for a 'Combined X-ray/CW-neutron refinement of PbSO4' from the *GSAS-II* tutorial. Perform the refinements as desscribed in the [tutorial](https://subversion.xray.aps.anl.gov/pyGSAS/Tutorials/CWCombined/Combined%20refinement.htm).
 * Deselect all the refinable parameters except for the structural variables which include 3 lattice parameters, 11 sets of atomic coordinates, and 5 isotropic atomic displacement parameters. MAKE SURE to deselect **Background** and **Histogram scale factor**!
@@ -140,3 +149,4 @@ in the *estimate it as l\_delta /* fields, respectively.
 * Bayesian-corrected fits  
 * calculations of the most plausible (optimal) corrections     
 * plots relevant residuals and histograms  
+* runs a MCMC sampler
