@@ -211,7 +211,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 # nBlocks: number of blocks s to use for each Histogram 
     nBlocks = Controls['corrParam num blocks s'].split(',')
     nBlocks = [int(p) for p in nBlocks]*nHist
-
+   
 # Markov chain Monte Carlo
     doMCMC = Controls['doMCMC']
     
@@ -883,11 +883,11 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
         std_Bayes = sig
         rownames = np.array(varyList)
         printFileCompare = open(ospath.splitext(GPXfile)[0]+'-compare.lst','w')
-        header = '''    Name   val(GSAS) sig(GSAS) val(Bayes) sig(Bayes)'''       
+        header = '''    Name    val(GSAS)  sig(GSAS)  val(Bayes)  sig(Bayes)'''       
         dat = np.array([val_GSAS, std_GSAS, val_Bayes, std_Bayes  ]).T
         print >>printFileCompare, header
         for i in range(len(rownames)):
-            print >>printFileCompare, '%10s % 1.2e % 1.2e % 1.2e % 1.2e' % (rownames[i], dat[i,0], dat[i,1], dat[i,2], dat[i,3])        
+            print >>printFileCompare, '%10s % 1.3e % 1.3e % 1.3e % 1.3e' % (rownames[i], dat[i,0], dat[i,1], dat[i,2], dat[i,3])        
         printFileCompare.close()
 
 
