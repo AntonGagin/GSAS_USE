@@ -321,7 +321,10 @@ def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(),
     
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[peakCor, multCor, addCor, args])
     
+    t1 = time.time()
     p0, prob, state = sampler.run_mcmc(p0, 10)
+    t2 = time.time()
+    print 'Fitting will take approximately', round((t2-t1)/60,1)*nIter/10, 'minutes! \n'
     sampler.reset()
     
     
