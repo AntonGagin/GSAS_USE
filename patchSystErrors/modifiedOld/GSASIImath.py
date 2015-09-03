@@ -297,7 +297,8 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
 ##########################################################
 ##########################################################
 
-def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(), nwalkers=50, nIter=100, Print=False):
+def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(), 
+                     nwalkers=50, nIter=100, Print=False, fname='MCMC.txt', varyList='vars'):
 
     import emcee
     
@@ -319,15 +320,34 @@ def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(), nwalker
             p0[i][j] = (2.*p0[i][j]-1.)*x0sig[j] + x0[j]
     
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[peakCor, multCor, addCor, args])
-
-    pos, prob, state = sampler.run_mcmc(p0, 10)
+    
+    p0, prob, state = sampler.run_mcmc(p0, 10)
     sampler.reset()
-    sampler.run_mcmc(pos, nIter, rstate0=state)
-        
-    print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
-    print("Autocorrelation time:", sampler.get_autocorr_time())
+    
+    
+    chain = np.zeros( (nwalkers, nIter, ndim) )
+    probs = np.zeros( (nwalkers, nIter) )
+    lastsave = time.time()
+    index = 0
+    progress=0
+    for i, (iPos, iProb, iState) in enumerate(sampler.sample(p0, iterations=nIter)):
+        percent = int(100 * i / nIter)
+        if(percent % 5 == 0): 
+            if(percent!=progress): print("Progress: {0:.0f} percent of the steps".format(percent))
+            progress = percent     
+        chain[:, index, :] = iPos
+        probs[:, index] = iProb
+        index += 1
+        if time.time() - lastsave > 60*60:
+            lastsave = time.time()
+            chain_tmp = chain[:, :index, :]
+            np.savetxt(fname, chain_tmp.reshape((-1, ndim)), header=str(varyList))
+             
+ #   sampler.run_mcmc(p0, nIter, rstate0=state)  
+ #   print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
+ #   print("Autocorrelation time:", sampler.get_autocorr_time())
 
-    return sampler    
+    return chain  
 
 
 

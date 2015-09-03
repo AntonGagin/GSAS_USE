@@ -667,18 +667,19 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                 nIterMCMC = int(Controls['nIterMCMC'])
                 if (nwalkers==0): nwalkers=50
                 if (nIterMCMC==0): nIterMCMC=100
+                fnametxt = ospath.splitext(GPXfile)[0]+'-MCMC.txt'
                 sampler = G2mth.MarginalizedMCMC(G2stMth.errRefine,values, 2*sig,
                                     peakCor=peakCor, multCor=multCor, addCor=addCor,
                                     args=([Histograms,Phases,restraintDict,rigidbodyDict],
                                     parmDict,varyList,calcControls,pawleyLookup,dlg), 
-                                    nwalkers=nwalkers, nIter=nIterMCMC, Print=False)
+                                    nwalkers=nwalkers, nIter=nIterMCMC, Print=False,
+                                    fname=fnametxt, varyList=varyList)
                 ndim=len(sig)     
                 nToOmit = min(nIterMCMC/2, 50)                
-                samples = sampler.chain[:, nToOmit:, :].reshape((-1, ndim))                                          
+#                samples = sampler.chain[:, nToOmit:, :].reshape((-1, ndim))                                          
+                samples = sampler[:, nToOmit:, :].reshape((-1, ndim))                                          
                 bins = min(nIterMCMC*nwalkers/5, 20)
-                fnametxt = ospath.splitext(GPXfile)[0]+'-MCMC.txt'
-                np.savetxt(fnametxt, sampler.flatchain, header=str(varyList))
-                
+                np.savetxt(fnametxt, samples, header=str(varyList))          
                 fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
                 import triangle
                 fig = triangle.corner(samples, bins=bins, labels=varyList, 
