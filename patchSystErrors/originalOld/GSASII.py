@@ -159,7 +159,7 @@ class GSASII(wx.Frame):
             help='',id=wx.ID_ANY,
             kind=wx.ITEM_NORMAL,
             text='Read image data...')
-        self.Bind(wx.EVT_MENU, self.OnImageRead, id=item.GetId())        
+        self.Bind(wx.EVT_MENU, self.OnImageRead, id=item.GetId())
         item = parent.Append(
             help='',id=wx.ID_ANY,
             kind=wx.ITEM_NORMAL,
@@ -2317,7 +2317,8 @@ class GSASII(wx.Frame):
                 self.PatternTree.SelectItem(Id)
                 os.chdir(dlg.GetDirectory())           # to get Mac/Linux to change directory!
         finally:
-            dlg.Destroy()  
+            dlg.Destroy()
+                        
     def OnImageRead(self,event):
         'Called to read in an image in any known format'
         self.CheckNotebook()

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #GSASIIobj - data objects for GSAS-II
 ########### SVN repository information ###################
-# $Date: 2015-06-02 15:36:58 -0400 (Tue, 02 Jun 2015) $
+# $Date: 2015-06-09 17:02:06 -0400 (Tue, 09 Jun 2015) $
 # $Author: vondreele $
-# $Revision: 1875 $
+# $Revision: 1884 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIobj.py $
-# $Id: GSASIIobj.py 1875 2015-06-02 19:36:58Z vondreele $
+# $Id: GSASIIobj.py 1884 2015-06-09 21:02:06Z vondreele $
 ########### SVN repository information ###################
 
 '''
@@ -866,7 +866,7 @@ import GSASIIpath
 import GSASIImath as G2mth
 import numpy as np
 
-GSASIIpath.SetVersionNumber("$Revision: 1875 $")
+GSASIIpath.SetVersionNumber("$Revision: 1884 $")
 
 DefaultControls = {
     'deriv type':'analytic Hessian',
@@ -1300,6 +1300,7 @@ def CompileVarDesc():
         'Es$' : 'Secondary type II extinction',
         'Eg$' : 'Secondary type I extinction',
         'Flack' : 'Flack parameter',
+        'TwinFr' : 'Twin fraction',
         #Histogram vars (:h:<var>)
         'Absorption' : 'Absorption coef.',
         'Displace([XY])' : 'Debye-Scherrer sample displacement \\1',

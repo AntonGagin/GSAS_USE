@@ -4,14 +4,13 @@
 -----------------------------------------
 '''
 ########### SVN repository information ###################
-# $Date: 2015-06-05 15:21:06 -0400 (Fri, 05 Jun 2015) $
+# $Date: 2015-06-09 17:02:06 -0400 (Tue, 09 Jun 2015) $
 # $Author: vondreele $
-# $Revision: 1880 $
+# $Revision: 1884 $
 # $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIstrMath.py $
-# $Id: GSASIIstrMath.py 1880 2015-06-05 19:21:06Z vondreele $
+# $Id: GSASIIstrMath.py 1884 2015-06-09 21:02:06Z vondreele $
 ########### SVN repository information ###################
 import time
-import math
 import copy
 import numpy as np
 import numpy.ma as ma
@@ -19,7 +18,7 @@ import numpy.linalg as nl
 import scipy.optimize as so
 import scipy.stats as st
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1880 $")
+GSASIIpath.SetVersionNumber("$Revision: 1884 $")
 import GSASIIElem as G2el
 import GSASIIlattice as G2lat
 import GSASIIspc as G2spc
@@ -35,7 +34,7 @@ asind = lambda x: 180.*np.arcsin(x)/np.pi
 acosd = lambda x: 180.*np.arccos(x)/np.pi
 atan2d = lambda y,x: 180.*np.arctan2(y,x)/np.pi
     
-ateln2 = 8.0*math.log(2.0)
+ateln2 = 8.0*np.log(2.0)
 twopi = 2.0*np.pi
 twopisq = 2.0*np.pi**2
 

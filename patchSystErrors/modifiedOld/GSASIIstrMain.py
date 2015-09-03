@@ -67,13 +67,14 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
 # we'll need it later, but this cycle has to be done before the first refinement
     nHist = 0
     hIdList = []
+    histNames = G2stIO.GetHistogramNames(GPXfile,['PWDR',])    
     for histogram in histoList:
         Histogram = Histograms[histogram]
         hId = Histogram['hId']
         hIdList.append(hId) 
         nHist = nHist + 1
     config_example.xyFWHM = [[0]*(max(hIdList)+1), [0]*(max(hIdList)+1)]
-    
+    histNames = [ histNames[i] for i in hIdList]
 # Anton Gagin />
     while True:
         begin = time.time()
@@ -875,7 +876,6 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                             del(varyList[ipvt-1])
                             break
       
-        histNames=G2stIO.GetHistogramNames(GPXfile,['PWDR',])    
         plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, dx_opt, ydiff, ystd, yexp, ycor, yuncor)                   
       
       
@@ -963,7 +963,7 @@ def plotCorrections(nHist, histNames, E_mu, E_beta, nBlocks, x, cc_opt, bb_opt, 
         fig.canvas.set_window_title('Additive Error Plots') 
         for i in range(nHist):
             plt.subplot(nHist, 1, i+1)
-            lbl = histNames[i]+', E_mu='+str(E_mu[i])
+            lbl = histNames[i]+', E_beta='+str(E_beta[i])
             if i==0:
                 plt.title('Additive Error Estimation')
             plt.ylabel('Syst Error')  
