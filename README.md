@@ -86,7 +86,7 @@ $$
 The scaling parameters $\sigma_{\delta}$ and $l_{\delta}$ describe the standard deviation for the correction and correlation length for the point coordinates, respectively. $l_{\delta}$ can be estimated from the characteristic FWHM values for the diffraction peaks (which depend on x) as $FWHM /p1$, where $p1$ can be any real number. For a multi-phase refinement, if estimated from the FWHM, $l_{\delta}$ is calculated as a an average weighted by the number of peaks for all the phases. Fig. 1 gives you an idea on how to select $p1$ for $l_{\delta}$.
  
 <div style="width:450px; height=450px">
-![My Figure](https://cloud.githubusercontent.com/assets/8290742/9686784/97321530-52f3-11e5-9a7b-adf22a7b24f8.png)
+![Figure 1](https://cloud.githubusercontent.com/assets/8290742/9686784/97321530-52f3-11e5-9a7b-adf22a7b24f8.png)
 </div>
 
 $\sigma_{\delta}$ can be estimated from the $l_{\delta}$ value(s) as $l_{\delta}/p2$, where $p2$ can be any real number. Normally, $p2 \approx 1.5-2$
