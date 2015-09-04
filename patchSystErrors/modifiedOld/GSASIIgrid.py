@@ -17,6 +17,9 @@ import wx.grid as wg
 #import wx.wizard as wz
 #import wx.aui
 import wx.lib.scrolledpanel as wxscroll
+# </ Anton Gagin 
+import wx.lib.agw.supertooltip as STT
+# Anton Gagin /> 
 import time
 import copy
 import cPickle
@@ -1625,6 +1628,13 @@ def UpdateControls(G2frame,data):
         KnotsNumC.Bind(wx.EVT_KILL_FOCUS, OnKnotsNumC)
         MargMultSizer.Add(KnotsNumC,0,WACV)     
 
+        tip1 = STT.SuperToolTip("Set number of knots for the multiplicative correction. In most cases 30 is a reasonable maximum.\
+\nIf E_mu=0 multiplicative correction is not applied. If several histograms are refined simultaneously, \
+\nseparate E_mu values by commas, or use a single value for all histograms.")                                               
+        tip1.SetHeader("E_mu")
+        tip1.SetTarget(KnotsNumC)
+        tip1.SetDrawHeaderLine(True)
+        tip1.ApplyStyle("Office 2007 Blue")
         
         MargMultSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Prior factor k_mu: '),0,WACV)
         MargKMu = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam k_mu'],style=wx.TE_PROCESS_ENTER)
@@ -1632,6 +1642,13 @@ def UpdateControls(G2frame,data):
         MargKMu.Bind(wx.EVT_TEXT_ENTER, OnMargKMu)
         MargKMu.Bind(wx.EVT_KILL_FOCUS, OnMargKMu)
         MargMultSizer.Add(MargKMu,0,WACV)   
+           
+        tip2 = STT.SuperToolTip("If you don't know how to choose k_mu, select 'Estimate optimal k_mu?' ")
+        tip2.SetHeader("Scale parameter k_mu")
+        tip2.SetTarget(MargKMu)
+        tip2.SetDrawHeaderLine(True)
+        tip2.ApplyStyle("Office 2007 Blue")
+        
         
         OptKMu = wx.CheckBox(G2frame.dataDisplay,-1,label=' Estimate optimal k_mu?')
         OptKMu.Bind(wx.EVT_CHECKBOX, OnOptKMu)
@@ -1671,6 +1688,11 @@ def UpdateControls(G2frame,data):
         KnotsNumB.Bind(wx.EVT_KILL_FOCUS, OnKnotsNumB)
         MargAddSizer.Add(KnotsNumB,0,WACV)     
 
+        tip3 = STT.SuperToolTip("Set number of knots for the additive correction. \nIn most cases 30 is a reasonable maximum. \nIf E_beta=0 additive correction is not applied.")
+        tip3.SetHeader("E_beta")
+        tip3.SetTarget(KnotsNumB)
+        tip3.SetDrawHeaderLine(True)
+        tip3.ApplyStyle("Office 2007 Blue")
         
         MargAddSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Prior factor k_beta: '),0,WACV)
         MargKBeta = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam k_beta'],style=wx.TE_PROCESS_ENTER)
@@ -1678,7 +1700,13 @@ def UpdateControls(G2frame,data):
         MargKBeta.Bind(wx.EVT_TEXT_ENTER, OnMargKBeta)
         MargKBeta.Bind(wx.EVT_KILL_FOCUS, OnMargKBeta)
         MargAddSizer.Add(MargKBeta,0,WACV)   
-        
+
+        tip4 = STT.SuperToolTip("If you don't know how to choose k_beta, select 'Estimate optimal k_beta?' ")
+        tip4.SetHeader("Scale parameter k_beta")
+        tip4.SetTarget(MargKBeta)
+        tip4.SetDrawHeaderLine(True)
+        tip4.ApplyStyle("Office 2007 Blue")   
+   
         OptKBeta = wx.CheckBox(G2frame.dataDisplay,-1,label=' Estimate optimal k_beta?')
         OptKBeta.Bind(wx.EVT_CHECKBOX, OnOptKBeta)
         OptKBeta.SetValue(data['EstimateKBeta'])
@@ -1700,6 +1728,14 @@ def UpdateControls(G2frame,data):
         BlocksNum.Bind(wx.EVT_KILL_FOCUS, OnBlocksNum)
         MargNumBlocksSizer.Add(BlocksNum,0,WACV)
 
+        tip5 = STT.SuperToolTip("To reduce the computational complexity (e.g. one may get \nan out-of-memory error for extremely large histograms) \
+\nand speed the calculations use s>1. The fitted x-range \nwill be divided into s independent segments. s=6 normally \
+\nworks fine. If s=0 no peak-shape corrections applied.")
+        tip5.SetHeader("Number of blocks s")
+        tip5.SetTarget(BlocksNum)
+        tip5.SetDrawHeaderLine(True)
+        tip5.ApplyStyle("Office 2007 Blue")   
+        
         return MargNumBlocksSizer   
 
         
@@ -1747,6 +1783,12 @@ def UpdateControls(G2frame,data):
         FWHMDiv.Bind(wx.EVT_KILL_FOCUS, OnFWHMDiv)
         MargShapeSizer.Add(FWHMDiv,0,WACV)
         
+        tip6 = STT.SuperToolTip("Set n1~1-6. Smaller n1 values result in smoother peak-shape corrections. \nPlease refer to the README.pdf for more tips on how to select l_delta")
+        tip6.SetHeader("Estimate l_delta as FWHM/n1")
+        tip6.SetTarget(FWHMDiv)
+        tip6.SetDrawHeaderLine(True)
+        tip6.ApplyStyle("Office 2007 Blue")   
+        
         MargShapeSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Stdev sigma_delta: '),0,WACV)
         SigDel = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['corrParam sigma_delta'],style=wx.TE_PROCESS_ENTER)
         SigDel.SetValue(data['corrParam sigma_delta'])
@@ -1760,6 +1802,12 @@ def UpdateControls(G2frame,data):
         LDelDiv.Bind(wx.EVT_TEXT_ENTER, OnLDelDiv)
         LDelDiv.Bind(wx.EVT_KILL_FOCUS, OnLDelDiv)
         MargShapeSizer.Add(LDelDiv,0,WACV)
+
+        tip7 = STT.SuperToolTip("Set n2~1-3. Smaller n2 values allow bigger peak-shape corrections.")
+        tip7.SetHeader("Estimate sigma_delta as l_delta/n2")
+        tip7.SetTarget(LDelDiv)
+        tip7.SetDrawHeaderLine(True)
+        tip7.ApplyStyle("Office 2007 Blue")   
         
         return MargShapeSizer    
 
@@ -1811,6 +1859,12 @@ def UpdateControls(G2frame,data):
         NWalkers.Bind(wx.EVT_TEXT_ENTER, OnNWalkers)
         NWalkers.Bind(wx.EVT_KILL_FOCUS, OnNWalkers)
         MargMCMCControlsSizer.Add(NWalkers,0,WACV)     
+
+        tip8 = STT.SuperToolTip("Walkers are the members of the ensemble (almost like separate Metropolis-Hastings chains). \nSet nWalkers at least nWalkers>20 and nWalkers>4*nFittedParameters.")
+        tip8.SetHeader("Number of walkers")
+        tip8.SetTarget(NWalkers)
+        tip8.SetDrawHeaderLine(True)
+        tip8.ApplyStyle("Office 2007 Blue")  
         
         MargMCMCControlsSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Number of steps: '),0,WACV)
         nIterMCMC = wx.TextCtrl(G2frame.dataDisplay,-1,value=data['nIterMCMC'],style=wx.TE_PROCESS_ENTER)
@@ -1818,7 +1872,13 @@ def UpdateControls(G2frame,data):
         nIterMCMC.Bind(wx.EVT_TEXT_ENTER, OnNIterMCMC)
         nIterMCMC.Bind(wx.EVT_KILL_FOCUS, OnNIterMCMC)
         MargMCMCControlsSizer.Add(nIterMCMC,0,WACV)   
-                
+
+        tip9 = STT.SuperToolTip("The number of steps to run. The final sample size will be nWalkers*nIterations. \nMake sure it is big enough to sample your nFittedParameters-dimensional distribution.")
+        tip9.SetHeader("Number of iterations")
+        tip9.SetTarget(nIterMCMC)
+        tip9.SetDrawHeaderLine(True)
+        tip9.ApplyStyle("Office 2007 Blue")  
+        
         return MargMCMCControlsSizer
         
 # Anton Gagin />       
