@@ -19,7 +19,6 @@ For details of the *GSAS-II* package, refer to [Toby, B. H. & Von Dreele, R. B. 
 **2.** [**Usage**](#use)  
 **3.** [**Description**](#describe)  
 **4.** [**Example**](#example)  
-**5.** [**What patch does**](#capable)
 
 ***
 
@@ -139,15 +138,21 @@ in the *estimate it as l\_delta /* fields, respectively.
 
 * Select **Calculate/Refine** in the *GSAS-II* data tree window. The program will perform a standard least-squares fit followed by a Bayesian-corrected fit. The results will be saved in the **projectName.lst** file. The details of the Bayesian fit will be stored in the **projectName_cor_iHist.txt** files, where **iHist** is the histogram number.
 
+Select **Data/Open .lst file** to see the *GSAS-II* .lst project file. The residuals are summarized in the table entitled as
+
+```r
+********************************************************
+*
+* == SUMMARIZING REFINEMENT RESULTS: ==
+```
+
+Calculated as sum of squares residuals for the Bayesian approach are expected to be larger than those obtained using standard LS technique. Calculated with optimal corrections residuals are expected to be smaller. 
+
+Select **Data/Compare standard and Bayesian fits** to see fit results. The notation for the parameters is the following:
+```r
+i::Name:j
+```
+Here $i$ and $j$ indicate histogram and atom number, respectively, and $Name$ indicates parameter name. Note, that *GSAS-II* fits the changes in atomic coordinates rather than their absolute values. These changes are calculated with respect to the starting values. Absolute values for the atomic coordinates are given in the .lst project file.
 
 
-## <a name="capable"></a>What the patch does
 
-* constant-wavelength and time-of-flight data  
-* single- and multi-phase systems  
-* automatic selection of the optimal values for the prior parameters $k\_mu$ and $k\_beta$  
-* use of $FWHM(x)$ dependence to estimate $l\_delta$  
-* Bayesian-corrected fits  
-* calculations of the most plausible (optimal) corrections     
-* plots relevant residuals and histograms  
-* runs a MCMC sampler
