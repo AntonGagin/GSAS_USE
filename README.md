@@ -1,7 +1,7 @@
 ---
 title: "GSAS_USE"
 author: "Anton Gagin and Igor Levin"
-output: html_document
+output: pdf_document
 ---
 
 **Please open README.pdf to see the formulas**
@@ -15,14 +15,15 @@ For details of the *GSAS-II* package, refer to [Toby, B. H. & Von Dreele, R. B. 
 
 ***
 **Table of Contents**  
-**1.** [**Installation**](#install)  
-**2.** [**Usage**](#use)  
-**3.** [**Description**](#describe)  
+**1.** [**Installation**](#installation)  
+**2.** [**Usage**](#usage)  
+**3.** [**Description**](#description)  
 **4.** [**Example**](#example)  
+**5.** [**Bugs**](#bugs)  
 
 ***
 
-##<a name="install"></a>Installation
+##<a name="installation"></a>Installation
 To apply this patch, place the ***patchSystErrors*** folder in your *GSAS-II* local folder and run **\_\_apply_patch\_\_.py**, or print
 ```r
 execfile('__apply_patch__.py')
@@ -51,7 +52,7 @@ To restore the original *GSAS-II*-files, run **\_\_restore\_original\_\_.py**.
 To update patch, run **\_\_update\_patch\_\_.py**.
 
 
-##<a name="use"></a> Usage
+##<a name="usage"></a> Usage
 After the patch has been  applied, start *GSAS-II* normally. In **Controls** menu specify the correction parameters. If several histograms are refined simultaneously, list these parameters, separated by commas, in the order corresponding to the order of the histograms (it may not correspond to their order on the data tree). If you wish to the same value of the parameter for all histograms, enter a single number. Set $E\_mu$, $E\_beta$ or $s$ to zero, if you do not want to apply a particular correction (multiplicative, additive, or peak-shape.) 
 
 If you select *Estimate optimal k\_mu?*, the *Prior factor k\_mu* field will be set to ```optimal```.  The same is true for the *Estimate optimal k\_beta?* and *Prior factor k\_beta* fields.  Deselecting *Estimate optimal k?* will restore the previous value in *Prior factor k*.
@@ -60,7 +61,7 @@ If you click on *Correlation length l\_delta* field, the  *estimate it as FWHM /
 
 To start a Bayesian-corrected refinement, select **Calculate/Refine** in the *GSAS-II* data tree window. To see refinement results, select **Data/Open .lst file** or **Data/Compare standard and Bayesian fits**.
 
-##<a name="describe"></a> Description
+##<a name="description"></a> Description
 
 * The multiplicative correction $\mu(x)$ is approximated by a set of $E_{\mu}$ cubic spline functions $\phi_j^{(\mu)}(x)$
 $$
@@ -160,5 +161,7 @@ i::Name:j
 ```
 Here $i$ and $j$ indicate histogram and atom number, respectively, and $Name$ indicates parameter name. Note, that *GSAS-II* fits the changes in atomic coordinates rather than their absolute values. These changes are calculated with respect to the starting values. Absolute values for the atomic coordinates are given in the .lst project file.
 
+## <a name="bugs"></a>Bugs
+To report a bug or ask a question, send an e-mail to both of us (<av.gagin@gmail.com> and <igor.levin@nist.gov>). For bug report, please include the error message and traceback from the console window [text beginning with "Traceback (most recent call..."].
 
 
