@@ -676,14 +676,19 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                                     fname=fnametxt, varyList=varyList)
                 ndim=len(sig)     
                 nToOmit = min(nIterMCMC/2, 50)                
-#                samples = sampler.chain[:, nToOmit:, :].reshape((-1, ndim))                                          
-                samples = sampler[:, nToOmit:, :].reshape((-1, ndim))                                          
+#                samples = sampler.chain[:, nToOmit:, :].reshape((-1, ndim))     
+                samples = sampler[0]                              
+                samples = samples[:, nToOmit:, :].reshape((-1, ndim))  
+                probs = sampler[1]
+                probs = probs[:, nToOmit:].reshape((-1, 1))
                 bins = min(nIterMCMC*nwalkers/5, 20)
-                np.savetxt(fnametxt, samples, header=str(varyList))          
+                np.savetxt(fnametxt, samples, header=str(varyList))
+                np.savetxt("probs.txt", probs)
+                
                 fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
                 import triangle
-                fig = triangle.corner(samples, bins=bins, labels=varyList, 
-                                      quantiles=[0.16, 0.5, 0.84])
+                fig = triangle.corner(samples, bins=bins, labels=varyList, quantiles=[0.16, 0.5, 0.84], 
+                                     labels_args={"fontsize": 40})
                 try:
                     fig.savefig(fnamepng)
                 except:

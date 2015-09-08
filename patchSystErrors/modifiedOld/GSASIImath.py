@@ -344,13 +344,15 @@ def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(),
         if time.time() - lastsave > 60*60:
             lastsave = time.time()
             chain_tmp = chain[:, :index, :]
+            probs_tmp = probs[:, :index]
             np.savetxt(fname, chain_tmp.reshape((-1, ndim)), header=str(varyList))
+            np.savetxt("probs.txt", probs_tmp.reshape((-1, 1)))
              
  #   sampler.run_mcmc(p0, nIter, rstate0=state)  
  #   print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
  #   print("Autocorrelation time:", sampler.get_autocorr_time())
 
-    return chain  
+    return [chain, probs]    
 
 
 

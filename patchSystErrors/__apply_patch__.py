@@ -32,7 +32,7 @@ print '''
 '''
 print "\n--------------------------"
 
-print "This script will patch your current version of the GSAS-II package \n"
+print "This script will patch your current version of the GSAS-II package. Please make sure that your are patching original version of GSAS-II. \n"
 begin = raw_input("Begin [y/n]?") 
 
 if begin=='y':
