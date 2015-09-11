@@ -1,14 +1,14 @@
 ---
 title: "GSAS_USE"
 author: "Anton Gagin and Igor Levin"
-output: pdf_document
+output: html_document
 ---
 
 **Please open README.pdf to see the formulas**
 
-This is an extension to the  *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/pyGSAS)* Rietveld package *GSAS_USE* (Bayesian Statistics Approach to Accounting for <b>U</b>nknown <b>S</b>ystematic <b>E</b>rrors), written and maintained by Anton Gagin (<anton.gagin@nist.gov>, <av.gagin@gmail.com>.) 
+This is an extension to the  *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/pyGSAS)* Rietveld package *GSAS_USE* (Bayesian Statistics Approach to Accounting for <b>U</b>nknown <b>S</b>ystematic <b>E</b>rrors), written and maintained by Anton Gagin (av.gagin@gmail.com, igor.levin@nist.gov) 
 
-*GSAS_USE* addresses the effects of systematic errors in Rietveld refinements. The errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into  using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. See [Gagin, A. & Levin, I. (2015). *Accounting for Unknown Systematic Errors in Rietveld Refinements: A Bayesian Statistics Approach.* *J. Appl. Cryst*. **48**, 1201-1211](http://journals.iucr.org/j/issues/2015/04/00/po5042/stdsup.html) for details.
+*GSAS_USE* addresses the effects of systematic errors in Rietveld refinements. The errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. See [Gagin, A. & Levin, I. (2015). *Accounting for Unknown Systematic Errors in Rietveld Refinements: A Bayesian Statistics Approach.* *J. Appl. Cryst*. **48**, 1201-1211](http://journals.iucr.org/j/issues/2015/04/00/po5042/stdsup.html) for details.
 
 The current version has been tested with *GSAS-II* version 0.2.0, revision 1970.  
 For details of the *GSAS-II* package, refer to [Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549](http://onlinelibrary.wiley.com/doi/10.1107/S0021889813003531/abstract), or visit their [website](https://subversion.xor.aps.anl.gov/trac/pyGSAS).
@@ -28,7 +28,7 @@ To apply this patch, place the ***patchSystErrors*** folder in your *GSAS-II* lo
 ```r
 execfile('__apply_patch__.py')
 ```
-in a python command line interpreter. If everything correctly, the following message will be displayed 
+in a python command line interpreter. If everything works correctly, the following message will be displayed 
 
 ```r
 ### based on Diff, Match and Patch Library
@@ -84,14 +84,14 @@ where the covariance matrix $\Sigma_{\delta}^{-1}$ is defined as
 $$
 \Sigma_{ij}^{(\delta)} = \sigma_{\delta}^2 \exp \left(  -\frac{1}{2} \left( \frac{x_i-x_j}{l_{\delta}} \right)^2 \right).
 $$
-The scaling parameters $\sigma_{\delta}$ and $l_{\delta}$ describe the standard deviation for the correction and correlation length for the point coordinates, respectively. $l_{\delta}$ can be estimated from the characteristic FWHM values for the diffraction peaks (which depend on x) as $FWHM /p1$, where $p1$ can be any real number. For a multi-phase refinement, if estimated from the FWHM, $l_{\delta}$ is calculated as a an average weighted by the number of peaks for all the phases. Fig. 1 gives you an idea on how to select $p1$ for $l_{\delta}$.
+The scaling parameters $\sigma_{\delta}$ and $l_{\delta}$ describe a standard deviation for the correction and correlation length for the point coordinates, respectively. $l_{\delta}$ can be estimated from characteristic FWHM values for diffraction peaks (which depend on x) as $FWHM /p1$, where $p1$ can be any real number. For a multi-phase refinement, if estimated from FWHM, $l_{\delta}$ is calculated as a an average weighted by a number of peaks for all the phases. Fig. 1 provides a hint on how to select $p1$ for $l_{\delta}$.
  
 <div style="width:450px; height=450px">
 ![Figure 1](https://cloud.githubusercontent.com/assets/8290742/9686784/97321530-52f3-11e5-9a7b-adf22a7b24f8.png)
 </div>
 
 $\sigma_{\delta}$ can be estimated from the $l_{\delta}$ value(s) as $l_{\delta}/p2$, where $p2$ can be any real number. Normally, $p2 \approx 1.5-2$
-To reduce the computational complexity (e.g. one may get an out-of-memory error for extremely large histograms) and speed the calculations, the fitted x-range is divided into $s$ independent segments. 
+To reduce computational complexity (e.g. one may get an out-of-memory error for extremely large histograms) and speed the calculations up, the fitted x-range is divided into $s$ independent segments. 
 
 * The iterative procedure works as follows:
   
@@ -100,27 +100,27 @@ To reduce the computational complexity (e.g. one may get an out-of-memory error 
     * the optimal corrections are calculated and applied to the experimental data
     * a Bayesian-corrected fit is repeated
   
-The second Bayesian-corrected fit is prone to overfitting becouse it uses the same correction parameters as have been already applied to the data. Therefore, we advise to limit the use of the iterative option to cases of large systematic errors.
+The second Bayesian-corrected fit is prone to overfitting because it uses the same correction parameters as those that have been already applied to the data. Therefore, we advise to limit the use of the iterative option to cases of large systematic errors.
 
 * If your select *run sampler for MCMC?* the patch will do the following:
 	* perform a standard fit
 	* call the [*emcee*](http://dan.iel.fm/emcee/current/) library and run the Goodman & Weare's Affine Invariant MCMC sampler
-	* perform a Bayesian-corrected fit to obtain the final estimations
+	* perform a Bayesian-corrected fit to obtain the final estimates
   
-Results of the MCMC sampler will be saved in a text file and as a picture in a project folder. Prior to using this feature make sure that [*emcee*](http://dan.iel.fm/emcee/current/user/install/) and [*triangle_plot*](https://github.com/dfm/triangle.py) libraries are installed.
+Results of the MCMC sampler will be saved in a text file and as a plot in a project folder. Prior to using this feature make sure that [*emcee*](http://dan.iel.fm/emcee/current/user/install/) and [*triangle_plot*](https://github.com/dfm/triangle.py) libraries are installed.
   
 ## <a name="example"></a>Example
-* [Download](https://subversion.xray.aps.anl.gov/pyGSAS/trunk/help/gsasII.html#Tutorials) the example files for a 'Combined X-ray/CW-neutron refinement of PbSO4' from the *GSAS-II* tutorial. Perform the refinements as desscribed in the [tutorial](https://subversion.xray.aps.anl.gov/pyGSAS/Tutorials/CWCombined/Combined%20refinement.htm).
+* [Download](https://subversion.xray.aps.anl.gov/pyGSAS/trunk/help/gsasII.html#Tutorials) the example files for a 'Combined X-ray/CW-neutron refinement of PbSO4' from the *GSAS-II* tutorial. Perform the refinements as described in the [tutorial](https://subversion.xray.aps.anl.gov/pyGSAS/Tutorials/CWCombined/Combined%20refinement.htm).
 * Deselect all the refinable parameters except for the structural variables which include 3 lattice parameters, 11 sets of atomic coordinates, and 5 isotropic atomic displacement parameters. MAKE SURE to deselect **Background** and **Histogram scale factor**!
 * For this example we want to correct all three types of errors. Set the *Number of knots E\_mu* to
 ```r
 15, 20
 ```
-(more splines are selected for the XRD data because it shows the worse residual). These number of knots can be increased up to 
+(more splines are selected for the XRD data because it exhibits the worse residual). These numbers of knots can be increased up to 
 ```r
 30, 45
 ```
-but this will take longer to calculate. Set *Priot factor k\_mu* to 
+but this will take longer to calculate. Set *Prior factor k\_mu* to 
 ```r
 1, 1
 ```
@@ -153,7 +153,7 @@ Select **Data/Open .lst file** to see the *GSAS-II* .lst project file. The resid
 * == SUMMARIZING REFINEMENT RESULTS: ==
 ```
 
-Calculated as sum of squares residuals for the Bayesian approach are expected to be larger than those obtained using standard LS technique. Calculated with optimal corrections residuals are expected to be smaller. 
+Calculated as a sum of squared residuals for the Bayesian approach are expected to be larger than those obtained using standard LS technique. Calculated with optimal corrections residuals are expected to be smaller. 
 
 Select **Data/Compare standard and Bayesian fits** to see fit results. The notation for the parameters is the following:
 ```r
@@ -162,6 +162,7 @@ i::Name:j
 Here $i$ and $j$ indicate histogram and atom number, respectively, and $Name$ indicates parameter name. Note, that *GSAS-II* fits the changes in atomic coordinates rather than their absolute values. These changes are calculated with respect to the starting values. Absolute values for the atomic coordinates are given in the .lst project file.
 
 ## <a name="bugs"></a>Bugs
-To report a bug or ask a question, send an e-mail to both of us (<av.gagin@gmail.com> and <igor.levin@nist.gov>). For bug report, please include the error message and traceback from the console window [text beginning with "Traceback (most recent call..."].
+To report a bug or ask a question, send an e-mail to both of us (<av.gagin@gmail.com> and <igor.levin@nist.gov>). For a bug report, please include the error message and traceback from the console window [text beginning with "Traceback (most recent call..."].
 
+Please cite Gagin, A. & Levin, I. (2015). *Accounting for Unknown Systematic Errors in Rietveld Refinements: A Bayesian Statistics Approach.* *J. Appl. Cryst*. **48**, 1201-1211 in publications that use this method.
 

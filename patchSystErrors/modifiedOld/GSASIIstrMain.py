@@ -682,8 +682,8 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
                 probs = sampler[1]
                 probs = probs[:, nToOmit:].reshape((-1, 1))
                 bins = min(nIterMCMC*nwalkers/5, 20)
-                np.savetxt(fnametxt, samples, header=str(varyList))
-                np.savetxt("probs.txt", probs)
+                print 
+                np.savetxt(fnametxt, np.concatenate((samples, probs), axis=1), header=str([varyList, "probs"]))
                 
                 fnamepng = ospath.splitext(GPXfile)[0]+'-MCMC.png'
                 import triangle
@@ -836,7 +836,22 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             print 'GOF before corrections: ', GOF_uncor
             print 'GOF after after corrections: ', GOF_opt
             
-            print >>printFile,' Applying corrections:'
+            print >>printFile, '\n'  
+            print >>printFile,' Bayesian-corrected refinements:\n'
+            print >>printFile,' E_mu:', str(E_mu)
+            print >>printFile,' k_mu:', str(k_mu)
+            print >>printFile,' E_beta:', str(E_beta)
+            print >>printFile,' k_beta:', str(k_beta)
+            print >>printFile,' number of blocks s:', str(nBlocks)
+            print >>printFile,' l_delta:', str(Controls['corrParam l_delta'].split(','))
+            print >>printFile,' n1 (l_delta=FWHM/n1):', str(Controls['corrParam FWHMDivN'].split(','))
+            print >>printFile,' sigma_delta:', str(Controls['corrParam sigma_delta'].split(','))
+            print >>printFile,' n2 (sigma_delta=l_delta/n2):', str(Controls['corrParam l_deltaDivN'].split(','))
+            print >>printFile,' runMCMC:', str(doMCMC)
+            print >>printFile,' nWalkers:', str(int(Controls['nwalkers']))
+            print >>printFile,' nIterMCMC:', str(int(Controls['nIterMCMC']))
+            
+
             print >>printFile,' Number of function calls:',result[2]['nfev'],' Number of observations: ',Histograms['Nobs'],' Number of parameters: ',len(varyList)
             print >>printFile,' Refinement time = %8.3fs, %8.3fs/cycle, for %d cycles'%(runtime,runtime/ncyc,ncyc)
             print >>printFile,' wR = %7.2f%%, chi**2 = %12.6g, GOF = %6.2f'%(Rvals['Rwp'],Rvals['chisq'],Rvals['GOF'])
@@ -853,6 +868,7 @@ def RefineCore(Controls,Histograms,Phases,restraintDict,rigidbodyDict,parmDict,v
             print >>printFile,90*'*'
             print >>printFile, '\n'  
             
+            print >>printFile,' Refinement results for the Bayesian-corrected approach:\n'
             
             IfOK = True
             try:
