@@ -62,9 +62,11 @@ WACV = wx.ALIGN_CENTER_VERTICAL
     wxID_SINGLEMCSA, wxID_4DMAPCOMPUTE,wxID_4DCHARGEFLIP,
 ] = [wx.NewId() for item in range(17)]
 
-[ wxID_PWDRADD, wxID_HKLFADD, wxID_PWDANALYSIS, wxID_PWDCOPY, wxID_PLOTCTRLCOPY, 
+# </ Anton Gagin 
+[ wxID_PWDRADD, wxID_HKLFADD, wxID_PWDANALYSIS, wxID_PWDEXPORTQQ, wxID_PWDCOPY, wxID_PLOTCTRLCOPY, 
     wxID_DATADELETE,wxID_DATACOPY,wxID_DATACOPYFLAGS,wxID_DATASELCOPY,
-] = [wx.NewId() for item in range(9)]
+] = [wx.NewId() for item in range(10)]
+# Anton Gagin />  
 
 [ wxID_ATOMSEDITADD, wxID_ATOMSEDITINSERT, wxID_ATOMSEDITDELETE, wxID_ATOMSREFINE, 
     wxID_ATOMSMODIFY, wxID_ATOMSTRANSFORM, wxID_ATOMSVIEWADD, wxID_ATOMVIEWINSERT,
@@ -738,6 +740,10 @@ class DataFrame(wx.Frame):
         self.PWDRMenu.Append(menu=self.ErrorAnal,title='Commands')
         self.ErrorAnal.Append(id=wxID_PWDANALYSIS,kind=wx.ITEM_NORMAL,text='Error Analysis',
             help='Error analysis on powder pattern')
+# </ Anton Gagin             
+        self.ErrorAnal.Append(id=wxID_PWDEXPORTQQ,kind=wx.ITEM_NORMAL,text='Export QQ-plot as text',
+            help='Save data for QQ-plot as a text file')    
+# Anton Gagin />  
         self.ErrorAnal.Append(id=wxID_PWDCOPY,kind=wx.ITEM_NORMAL,text='Copy params',
             help='Copy of PWDR parameters')
         self.ErrorAnal.Append(id=wxID_PLOTCTRLCOPY,kind=wx.ITEM_NORMAL,text='Copy plot controls',
@@ -3086,7 +3092,12 @@ def UpdatePWHKPlot(G2frame,kind,item):
         
     def OnErrorAnalysis(event):
         G2plt.PlotDeltSig(G2frame,kind)
-        
+
+# </ Anton Gagin
+    def OnExportQQ(event):
+        G2plt.ExportDeltSig(G2frame,kind)
+# Anton Gagin />  
+
     def OnWtFactor(event):
         try:
             val = float(wtval.GetValue())
@@ -3125,6 +3136,9 @@ def UpdatePWHKPlot(G2frame,kind,item):
     if kind in ['PWDR','SASD']:
         SetDataMenuBar(G2frame,G2frame.dataFrame.PWDRMenu)
         G2frame.dataFrame.Bind(wx.EVT_MENU, OnErrorAnalysis, id=wxID_PWDANALYSIS)
+# </ Anton Gagin
+        G2frame.dataFrame.Bind(wx.EVT_MENU, OnExportQQ, id=wxID_PWDEXPORTQQ)
+# Anton Gagin />          
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopySelectedItems, id=wxID_PWDCOPY)
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopyPlotCtrls, id=wxID_PLOTCTRLCOPY)
     elif kind in ['HKLF',]:
