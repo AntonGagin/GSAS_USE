@@ -1888,6 +1888,81 @@ def ExportDeltSig(G2frame,kind):
     try:
         if dlg.ShowModal() == wx.ID_OK:
             filename = dlg.GetPath()
+            np.savetxt(filename, zip(EDS, DS), header="EDS  DS")
+    finally:
+        dlg.Destroy()  
+# Anton Gagin />        
+       
+
+################################################################################
+##### ExportDeltSig
+################################################################################
+# </ Anton Gagin 
+def ExportDeltSig(G2frame,kind):
+    'needs a doc string'
+    try:
+        plotNum = G2frame.G2plotNB.plotList.index('Error analysis')
+        Page = G2frame.G2plotNB.nb.GetPage(plotNum)
+        Page.figure.clf()
+        Plot = Page.figure.gca()          #get a fresh plot after clf()
+    except ValueError:
+        newPlot = True
+        G2frame.Cmax = 1.0
+        Plot = G2frame.G2plotNB.addMpl('Error analysis').gca()
+        plotNum = G2frame.G2plotNB.plotList.index('Error analysis')
+        Page = G2frame.G2plotNB.nb.GetPage(plotNum)
+    Page.Choice = None
+    PatternId = G2frame.PatternId
+    Pattern = G2frame.PatternTree.GetItemPyData(PatternId)
+    Pattern.append(G2frame.PatternTree.GetItemText(PatternId))
+    wtFactor = Pattern[0]['wtFactor']
+    if kind == 'PWDR':
+        limits = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,PatternId, 'Limits'))[1]
+        xye = np.array(Pattern[1])
+        xmin = np.searchsorted(xye[0],limits[0])
+        xmax = np.searchsorted(xye[0],limits[1])
+        DS = xye[5][xmin:xmax]*np.sqrt(wtFactor*xye[2][xmin:xmax])
+    elif kind == 'HKLF':
+        refl = Pattern[1]['RefList']
+        im = 0
+        if Pattern[1]['Super']:
+            im = 1
+        DS = []
+        for ref in refl:
+            if ref[6+im] > 0.:
+                DS.append((ref[5+im]-ref[7+im])/ref[6+im])
+    Page.SetFocus()
+    G2frame.G2plotNB.status.DestroyChildren()
+    DS.sort()
+    EDS = np.zeros_like(DS)
+    DX = np.linspace(0.,1.,num=len(DS),endpoint=True)
+    oldErr = np.seterr(invalid='ignore')    #avoid problem at DX==0
+    T = np.sqrt(np.log(1.0/DX**2))
+    top = 2.515517+0.802853*T+0.010328*T**2
+    bot = 1.0+1.432788*T+0.189269*T**2+0.001308*T**3
+    EDS = np.where(DX>0,-(T-top/bot),(T-top/bot))
+    low1 = np.searchsorted(EDS,-1.)
+    hi1 = np.searchsorted(EDS,1.)
+    slp,intcp = np.polyfit(EDS[low1:hi1],DS[low1:hi1],deg=1)
+    frac = 100.*(hi1-low1)/len(DS)
+    G2frame.G2plotNB.status.SetStatusText(  \
+        'Over range -1. to 1. :'+' slope = %.3f, intercept = %.3f for %.2f%% of the fitted data'%(slp,intcp,frac),1)
+    Plot.set_title('Normal probability for '+Pattern[-1])
+    Plot.set_xlabel(r'expected $\mathsf{\Delta/\sigma}$',fontsize=14)
+    Plot.set_ylabel(r'observed $\mathsf{\Delta/\sigma}$',fontsize=14)
+    Plot.plot(EDS,DS,'r+',label='result')
+    Plot.plot([-2,2],[-2,2],'k',dashes=(5,5),label='ideal')
+    Plot.legend(loc='upper left')
+    np.seterr(invalid='warn')
+    Page.canvas.draw()
+    
+    dlg = wx.FileDialog(
+        G2frame,
+        'Choose text output file for your selection', '.', '', 
+        'Text output file (*.txt)|*.txt',wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT|wx.CHANGE_DIR)
+    try:
+        if dlg.ShowModal() == wx.ID_OK:
+            filename = dlg.GetPath()
             np.savetxt(filename, zip(DS, EDS), header="DS  EDS")
     finally:
         dlg.Destroy()  

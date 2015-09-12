@@ -1572,7 +1572,7 @@ def UpdateControls(G2frame,data):
         Indx = {}
         if 'Hessian' in data['deriv type']:
             LSSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Max cycles: '),0,WACV)
-            Choice = ['0','1','2','3','5','10','15','20']
+            Choice = ['0','1','2','3','5','10','15','20', '30', '40', '50', '75', '100']
             maxCyc = wx.ComboBox(parent=G2frame.dataDisplay,value=str(data['max cyc']),choices=Choice,
                 style=wx.CB_READONLY|wx.CB_DROPDOWN)
             maxCyc.SetValue(str(data['max cyc']))
