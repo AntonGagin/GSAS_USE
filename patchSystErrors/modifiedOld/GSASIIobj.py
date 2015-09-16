@@ -880,6 +880,7 @@ DefaultControls = {
     'corrParam sigma_delta':str(0), 'corrParam l_delta':str(0),
     'corrParam num blocks s': str(0), 'corrParam FWHMDivN':"none",
     'corrParam l_deltaDivN':"none", 'nwalkers':str(0), 'nIterMCMC':str(0),
+    'doMCMC':False,
 # Anton Gagin />   
 
     'Copy2Next':False,'Reverse Seq':False,
