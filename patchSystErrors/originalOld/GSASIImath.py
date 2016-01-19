@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #GSASIImath - major mathematics routines
 ########### SVN repository information ###################
-# $Date: 2015-05-13 15:45:07 -0400 (Wed, 13 May 2015) $
+# $Date: 2015-12-11 14:34:43 -0500 (Fri, 11 Dec 2015) $
 # $Author: vondreele $
-# $Revision: 1845 $
-# $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIImath.py $
-# $Id: GSASIImath.py 1845 2015-05-13 19:45:07Z vondreele $
+# $Revision: 2089 $
+# $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASIImath.py $
+# $Id: GSASIImath.py 2089 2015-12-11 19:34:43Z vondreele $
 ########### SVN repository information ###################
 '''
 *GSASIImath: computation module*
@@ -26,14 +26,16 @@ import time
 import math
 import copy
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1845 $")
+GSASIIpath.SetVersionNumber("$Revision: 2089 $")
 import GSASIIElem as G2el
 import GSASIIlattice as G2lat
 import GSASIIspc as G2spc
 import GSASIIpwd as G2pwd
 import numpy.fft as fft
 import scipy.optimize as so
-import pypowder as pyd
+import pypowder as pwd
+if GSASIIpath.GetConfigValue('debug'):
+    import pylab as pl
 
 sind = lambda x: np.sin(x*np.pi/180.)
 cosd = lambda x: np.cos(x*np.pi/180.)
@@ -44,6 +46,7 @@ atand = lambda x: 180.*np.arctan(x)/np.pi
 atan2d = lambda y,x: 180.*np.arctan2(y,x)/np.pi
 twopi = 2.0*np.pi
 twopisq = 2.0*np.pi**2
+nxs = np.newaxis
     
 ################################################################################
 ##### Hessian least-squares Levenberg-Marquardt routine
@@ -139,8 +142,10 @@ def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Pr
             M2 = func(x0+Xvec,*args)
             nfev += 1
             chisq1 = np.sum(M2**2)
-            if chisq1 > chisq0:
+            if chisq1 > chisq0*(1.+ftol):
                 lam *= 10.
+                if Print:
+                    print 'matrix modification needed; lambda now %.1e'%(lam)
             else:
                 x0 += Xvec
                 lam /= 10.
@@ -288,11 +293,12 @@ def FindMolecule(ind,generalData,atomData):                    #uses numpy & mas
             newAtoms.append(atom)
     return newAtoms
         
-def FindAtomIndexByIDs(atomData,IDs,Draw=True):
+def FindAtomIndexByIDs(atomData,loc,IDs,Draw=True):
     '''finds the set of atom array indices for a list of atom IDs. Will search 
     either the Atom table or the drawAtom table.
     
     :param list atomData: Atom or drawAtom table containting coordinates, etc.
+    :param int loc: location of atom id in atomData record
     :param list IDs: atom IDs to be found
     :param bool Draw: True if drawAtom table to be searched; False if Atom table
       is searched
@@ -302,9 +308,9 @@ def FindAtomIndexByIDs(atomData,IDs,Draw=True):
     '''
     indx = []
     for i,atom in enumerate(atomData):
-        if Draw and atom[-3] in IDs:
+        if Draw and atom[loc] in IDs:
             indx.append(i)
-        elif atom[-1] in IDs:
+        elif atom[loc] in IDs:
             indx.append(i)
     return indx
 
@@ -375,6 +381,133 @@ def GetAtomCoordsByID(pId,parmDict,AtLookup,indx):
         XYZ.append([parmDict[name]+parmDict[dname] for name,dname in zip(names,dnames)])
     return XYZ
 
+def FindNeighbors(phase,FrstName,AtNames,notName=''):
+    General = phase['General']
+    cx,ct,cs,cia = General['AtomPtrs']
+    Atoms = phase['Atoms']
+    atNames = [atom[ct-1] for atom in Atoms]
+    Cell = General['Cell'][1:7]
+    Amat,Bmat = G2lat.cell2AB(Cell)
+    atTypes = General['AtomTypes']
+    Radii = np.array(General['BondRadii'])
+    DisAglCtls = General['DisAglCtls']    
+    radiusFactor = DisAglCtls['Factors'][0]
+    AtInfo = dict(zip(atTypes,Radii)) #or General['BondRadii']
+    Orig = atNames.index(FrstName)
+    OId = Atoms[Orig][cia+8]
+    OType = Atoms[Orig][ct]
+    XYZ = getAtomXYZ(Atoms,cx)        
+    Neigh = []
+    Ids = []
+    Dx = np.inner(Amat,XYZ-XYZ[Orig]).T
+    dist = np.sqrt(np.sum(Dx**2,axis=1))
+    sumR = np.array([AtInfo[OType]+AtInfo[atom[ct]] for atom in Atoms])
+    IndB = ma.nonzero(ma.masked_greater(dist-radiusFactor*sumR,0.))
+    for j in IndB[0]:
+        if j != Orig:
+            if AtNames[j] != notName:
+                Neigh.append([AtNames[j],dist[j],True])
+                Ids.append(Atoms[j][cia+8])
+    return Neigh,[OId,Ids]
+    
+def AddHydrogens(AtLookUp,General,Atoms,AddHydId):
+    
+    def getTransMat(RXYZ,OXYZ,TXYZ,Amat):
+        Vec = np.inner(Amat,np.array([OXYZ-TXYZ[0],RXYZ-TXYZ[0]])).T            
+        Vec /= np.sqrt(np.sum(Vec**2,axis=1))[:,nxs]
+        Mat2 = np.cross(Vec[0],Vec[1])      #UxV
+        Mat2 /= np.sqrt(np.sum(Mat2**2))
+        Mat3 = np.cross(Mat2,Vec[0])        #(UxV)xU
+        return nl.inv(np.array([Vec[0],Mat2,Mat3]))        
+    
+    cx,ct,cs,cia = General['AtomPtrs']
+    Cell = General['Cell'][1:7]
+    Amat,Bmat = G2lat.cell2AB(Cell)
+    nBonds = AddHydId[-1]+len(AddHydId[1])
+    Oatom = GetAtomsById(Atoms,AtLookUp,[AddHydId[0],])[0]
+    OXYZ = np.array(Oatom[cx:cx+3])
+    if 'I' in Oatom[cia]:
+        Uiso = Oatom[cia+1]
+    else:
+        Uiso = (Oatom[cia+2]+Oatom[cia+3]+Oatom[cia+4])/3.0       #simple average
+    Uiso = max(Uiso,0.005)                      #set floor!
+    Tatoms = GetAtomsById(Atoms,AtLookUp,AddHydId[1])
+    TXYZ = np.array([tatom[cx:cx+3] for tatom in Tatoms]) #3 x xyz
+    DX = np.inner(Amat,TXYZ-OXYZ).T
+    if nBonds == 4:
+        if AddHydId[-1] == 1:
+            Vec = TXYZ-OXYZ
+            Len = np.sqrt(np.sum(np.inner(Amat,Vec).T**2,axis=0))
+            Vec = np.sum(Vec/Len,axis=0)
+            Len = np.sqrt(np.sum(Vec**2))
+            Hpos = OXYZ-0.98*np.inner(Bmat,Vec).T/Len
+            HU = 1.1*Uiso
+            return [Hpos,],[HU,]
+        elif AddHydId[-1] == 2:
+            Vec = np.inner(Amat,TXYZ-OXYZ).T
+            Vec[0] += Vec[1]            #U - along bisector
+            Vec /= np.sqrt(np.sum(Vec**2,axis=1))[:,nxs]
+            Mat2 = np.cross(Vec[0],Vec[1])      #UxV
+            Mat2 /= np.sqrt(np.sum(Mat2**2))
+            Mat3 = np.cross(Mat2,Vec[0])        #(UxV)xU
+            iMat = nl.inv(np.array([Vec[0],Mat2,Mat3]))
+            Hpos = np.array([[-0.97*cosd(54.75),0.97*sind(54.75),0.],
+                [-0.97*cosd(54.75),-0.97*sind(54.75),0.]])
+            HU = 1.2*Uiso*np.ones(2)
+            Hpos = np.inner(Bmat,np.inner(iMat,Hpos).T).T+OXYZ
+            return Hpos,HU
+        else:
+            Ratom = GetAtomsById(Atoms,AtLookUp,[AddHydId[2],])[0]
+            RXYZ = np.array(Ratom[cx:cx+3])
+            iMat = getTransMat(RXYZ,OXYZ,TXYZ,Amat)
+            a = 0.96*cosd(70.5)
+            b = 0.96*sind(70.5)
+            Hpos = np.array([[a,0.,-b],[a,-b*cosd(30.),0.5*b],[a,b*cosd(30.),0.5*b]])
+            Hpos = np.inner(Bmat,np.inner(iMat,Hpos).T).T+OXYZ
+            HU = 1.5*Uiso*np.ones(3)
+            return Hpos,HU          
+    elif nBonds == 3:
+        if AddHydId[-1] == 1:
+            Vec = np.sum(TXYZ-OXYZ,axis=0)                
+            Len = np.sqrt(np.sum(np.inner(Amat,Vec).T**2))
+            Vec = -0.93*Vec/Len
+            Hpos = OXYZ+Vec
+            HU = 1.1*Uiso
+            return [Hpos,],[HU,]
+        elif AddHydId[-1] == 2:
+            Ratom = GetAtomsById(Atoms,AtLookUp,[AddHydId[2],])[0]
+            RXYZ = np.array(Ratom[cx:cx+3])
+            iMat = getTransMat(RXYZ,OXYZ,TXYZ,Amat)
+            a = 0.93*cosd(60.)
+            b = 0.93*sind(60.)
+            Hpos = [[a,b,0],[a,-b,0]]
+            Hpos = np.inner(Bmat,np.inner(iMat,Hpos).T).T+OXYZ
+            HU = 1.2*Uiso*np.ones(2)
+            return Hpos,HU
+    else:   #2 bonds
+        if 'C' in Oatom[ct]:
+            Vec = TXYZ[0]-OXYZ
+            Len = np.sqrt(np.sum(np.inner(Amat,Vec).T**2))
+            Vec = -0.93*Vec/Len
+            Hpos = OXYZ+Vec
+            HU = 1.1*Uiso
+            return [Hpos,],[HU,]
+        elif 'O' in Oatom[ct]:
+            mapData = General['Map']
+            Ratom = GetAtomsById(Atoms,AtLookUp,[AddHydId[2],])[0]
+            RXYZ = np.array(Ratom[cx:cx+3])
+            iMat = getTransMat(RXYZ,OXYZ,TXYZ,Amat)
+            a = 0.82*cosd(70.5)
+            b = 0.82*sind(70.5)
+            azm = np.arange(0.,360.,5.)
+            Hpos = np.array([[a,b*cosd(x),b*sind(x)] for x in azm])
+            Hpos = np.inner(Bmat,np.inner(iMat,Hpos).T).T+OXYZ
+            Rhos = np.array([getRho(pos,mapData) for pos in Hpos])
+            imax = np.argmax(Rhos)
+            HU = 1.5*Uiso
+            return [Hpos[imax],],[HU,]
+    return [],[]
+        
 def AtomUij2TLS(atomData,atPtrs,Amat,Bmat,rbObj):   #unfinished & not used
     '''default doc string
     
@@ -653,7 +786,7 @@ def getMass(generalData):
     mass = 0.
     for i,elem in enumerate(generalData['AtomTypes']):
         mass += generalData['NoAtoms'][elem]*generalData['AtomMass'][i]
-    return mass    
+    return max(mass,1.0)    
 
 def getDensity(generalData):
     '''calculate crystal structure density
@@ -790,54 +923,252 @@ def XAnomAbs(Elements,wave):
         Xanom[El] = G2el.FPcalc(Orbs, kE)
     return Xanom
     
-def Modulation(waveTypes,SSUniq,SSPhi,FSSdata,XSSdata,USSdata):
-    import scipy.special as sp
-    import scipy.integrate as si
-    m = SSUniq.T[3]
-    nh = np.zeros(1)
-    if XSSdata.ndim > 2:
-        nh = np.arange(XSSdata.shape[1])        
-    M = np.where(m>0,m+nh[:,np.newaxis],m-nh[:,np.newaxis])
-    A = np.array(XSSdata[:3])
-    B = np.array(XSSdata[3:])
-    HdotA = (np.inner(A.T,SSUniq.T[:3].T)+SSPhi)
-    HdotB = (np.inner(B.T,SSUniq.T[:3].T)+SSPhi)
-    GpA = sp.jn(M[:,np.newaxis],twopi*HdotA)
-    GpB = sp.jn(M[:,np.newaxis],twopi*HdotB)*(1.j)**M
-    Gp = np.sum(GpA+GpB,axis=0)
-    return np.real(Gp).T,np.imag(Gp).T
+################################################################################
+#### Modulation math
+################################################################################
+
+def makeWaves(waveTypes,FSSdata,XSSdata,USSdata,Mast):
+    '''
+    waveTypes: array nAtoms: 'Fourier','ZigZag' or 'Block'
+    FSSdata: array 2 x atoms x waves    (sin,cos terms)
+    XSSdata: array 2x3 x atoms X waves (sin,cos terms)
+    USSdata: array 2x6 x atoms X waves (sin,cos terms)
+    Mast: array orthogonalization matrix for Uij
+    '''
+    ngl = 32
+    glTau,glWt = pwd.pygauleg(0.,1.,ngl)         #get Gauss-Legendre intervals & weights
+    Ax = np.array(XSSdata[:3]).T   #atoms x waves x sin pos mods
+    Bx = np.array(XSSdata[3:]).T   #...cos pos mods
+    Af = np.array(FSSdata[0]).T    #sin frac mods x waves x atoms
+    Bf = np.array(FSSdata[1]).T    #cos frac mods...
+    Au = Mast*np.array(G2lat.U6toUij(USSdata[:6])).T   #atoms x waves x sin Uij mods as betaij
+    Bu = Mast*np.array(G2lat.U6toUij(USSdata[6:])).T   #...cos Uij mods as betaij
+    nWaves = [Af.shape[1],Ax.shape[1],Au.shape[1]] 
+    if nWaves[0]:
+        tauF = np.arange(1.,nWaves[0]+1)[:,nxs]*glTau  #Fwaves x ngl
+        FmodA = Af[:,:,nxs]*np.sin(twopi*tauF[nxs,:,:])   #atoms X Fwaves X ngl
+        FmodB = Bf[:,:,nxs]*np.cos(twopi*tauF[nxs,:,:])
+        Fmod = np.sum(1.0+FmodA+FmodB,axis=1)             #atoms X ngl; sum waves
+    else:
+        Fmod = 1.0           
+    XmodZ = np.zeros((Ax.shape[0],Ax.shape[1],3,ngl))
+    XmodA = np.zeros((Ax.shape[0],Ax.shape[1],3,ngl))
+    XmodB = np.zeros((Ax.shape[0],Ax.shape[1],3,ngl))
+    for iatm in range(Ax.shape[0]):
+        nx = 0
+        if 'ZigZag' in waveTypes[iatm]:
+            nx = 1
+            Tmm = Ax[iatm][0][:2]                        
+            XYZmax = np.array([Ax[iatm][0][2],Bx[iatm][0][0],Bx[iatm][0][1]])
+            XmodZ[iatm][0] += posZigZag(glTau,Tmm,XYZmax).T
+        elif 'Block' in waveTypes[iatm]:
+            nx = 1
+            Tmm = Ax[iatm][0][:2]                        
+            XYZmax = np.array([Ax[iatm][0][2],Bx[iatm][0][0],Bx[iatm][0][1]])
+            XmodZ[iatm][0] += posBlock(glTau,Tmm,XYZmax).T
+        tauX = np.arange(1.,nWaves[1]+1-nx)[:,nxs]*glTau  #Xwaves x ngl
+        if nx:    
+            XmodA[iatm][:-nx] = Ax[iatm,nx:,:,nxs]*np.sin(twopi*tauX[nxs,:,nxs,:]) #atoms X waves X 3 X ngl
+            XmodB[iatm][:-nx] = Bx[iatm,nx:,:,nxs]*np.cos(twopi*tauX[nxs,:,nxs,:]) #ditto
+        else:
+            XmodA[iatm] = Ax[iatm,:,:,nxs]*np.sin(twopi*tauX[nxs,:,nxs,:]) #atoms X waves X 3 X ngl
+            XmodB[iatm] = Bx[iatm,:,:,nxs]*np.cos(twopi*tauX[nxs,:,nxs,:]) #ditto
+    Xmod = np.sum(XmodA+XmodB+XmodZ,axis=1)                #atoms X 3 X ngl; sum waves
+    Xmod = np.swapaxes(Xmod,1,2)
+    if nWaves[2]:
+        tauU = np.arange(1.,nWaves[2]+1)[:,nxs]*glTau     #Uwaves x ngl
+        UmodA = Au[:,:,:,:,nxs]*np.sin(twopi*tauU[nxs,:,nxs,nxs,:]) #atoms x waves x 3x3 x ngl
+        UmodB = Bu[:,:,:,:,nxs]*np.cos(twopi*tauU[nxs,:,nxs,nxs,:]) #ditto
+        Umod = np.swapaxes(np.sum(UmodA+UmodB,axis=1),1,3)      #atoms x 3x3 x ngl; sum waves
+    else:
+        Umod = 1.0
+#    GSASIIpath.IPyBreak()
+    return ngl,nWaves,Fmod,Xmod,Umod,glTau,glWt
+        
+def Modulation(H,HP,nWaves,Fmod,Xmod,Umod,glTau,glWt):
+    '''
+    H: array nRefBlk x ops X hklt
+    HP: array nRefBlk x ops X hklt proj to hkl
+    Fmod: array 2 x atoms x waves    (sin,cos terms)
+    Xmod: array atoms X 3 X ngl
+    Umod: array atoms x 3x3 x ngl
+    glTau,glWt: arrays Gauss-Lorentzian pos & wts
+    '''
     
-def ModulationDerv(waveTypes,SSUniq,SSPhi,FSSdata,XSSdata,USSdata):
-    import scipy.special as sp
-    m = SSUniq.T[3]
-    nh = np.zeros(1)
-    if XSSdata.ndim > 2:
-        nh = np.arange(XSSdata.shape[1])        
-    M = np.where(m>0,m+nh[:,np.newaxis],m-nh[:,np.newaxis])
-    A = np.array([[a,b] for a,b in zip(XSSdata[:3],XSSdata[3:])])
-    HdotA = twopi*(np.inner(SSUniq.T[:3].T,A.T)+SSPhi)
-    Gpm = sp.jn(M[:,np.newaxis,:]-1,HdotA)
-    Gpp = sp.jn(M[:,np.newaxis,:]+1,HdotA)
-    if Gpm.ndim > 3: #sum over multiple harmonics
-        Gpm = np.sum(Gpm,axis=0)
-        Gpp = np.sum(Gpp,axis=0)
-    dGpdk = 0.5*(Gpm+Gpp)
-    return np.real(dGpdk),np.imag(dGpdk)
+    if nWaves[2]:
+        if len(HP.shape) > 2:
+            HbH = np.exp(-np.sum(HP[:,:,nxs,nxs,:]*np.inner(HP,Umod),axis=-1)) # refBlk x ops x atoms x ngl add Overhauser corr.?
+        else:
+            HbH = np.exp(-np.sum(HP[:,nxs,nxs,:]*np.inner(HP,Umod),axis=-1)) # refBlk x ops x atoms x ngl add Overhauser corr.?
+    else:
+        HbH = 1.0
+    HdotX = np.inner(HP,Xmod)                   #refBlk x ops x atoms X ngl
+    if len(H.shape) > 2:
+        D = H[:,:,3:]*glTau[nxs,nxs,:]              #m*e*tau; refBlk x ops X ngl
+        HdotXD = twopi*(HdotX+D[:,:,nxs,:])
+    else:
+        D = H[:,3:]*glTau[nxs,:]              #m*e*tau; refBlk x ops X ngl
+        HdotXD = twopi*(HdotX+D[:,nxs,:])
+    cosHA = np.sum(Fmod*HbH*np.cos(HdotXD)*glWt,axis=-1)       #real part; refBlk X ops x atoms; sum for G-L integration
+    sinHA = np.sum(Fmod*HbH*np.sin(HdotXD)*glWt,axis=-1)       #imag part; ditto
+    return np.array([cosHA,sinHA])             # 2 x refBlk x SGops x atoms
+    
+def makeWavesDerv(ngl,waveTypes,FSSdata,XSSdata,USSdata,Mast):
+    '''
+    FSSdata: array 2 x atoms x waves    (sin,cos terms)
+    XSSdata: array 2x3 x atoms X waves (sin,cos terms)
+    USSdata: array 2x6 x atoms X waves (sin,cos terms)
+    Mast: array orthogonalization matrix for Uij
+    '''
+    glTau,glWt = pwd.pygauleg(0.,1.,ngl)         #get Gauss-Legendre intervals & weights
+    dT = 2./ngl
+    dX = 0.0001
+    waveShapes = [FSSdata.T.shape,XSSdata.T.shape,USSdata.T.shape]
+    Af = np.array(FSSdata[0]).T    #sin frac mods x waves x atoms
+    Bf = np.array(FSSdata[1]).T    #cos frac mods...
+    Ax = np.array(XSSdata[:3]).T   #...cos pos mods x waves x atoms
+    Bx = np.array(XSSdata[3:]).T   #...cos pos mods
+    Au = Mast*np.array(G2lat.U6toUij(USSdata[:6])).T   #atoms x waves x sin Uij mods
+    Bu = Mast*np.array(G2lat.U6toUij(USSdata[6:])).T   #...cos Uij mods
+    nWaves = [Af.shape[1],Ax.shape[1],Au.shape[1]] 
+    StauX = np.zeros((Ax.shape[0],Ax.shape[1],3,ngl))    #atoms x waves x 3 x ngl
+    CtauX = np.zeros((Ax.shape[0],Ax.shape[1],3,ngl))
+    ZtauXt = np.zeros((Ax.shape[0],2,3,ngl))               #atoms x Tminmax x 3 x ngl
+    ZtauXx = np.zeros((Ax.shape[0],3,ngl))               #atoms x XYZmax x ngl
+    for iatm in range(Ax.shape[0]):
+        nx = 0
+        if 'ZigZag' in waveTypes[iatm]:
+            nx = 1
+            Tmm = Ax[iatm][0][:2]                        
+            XYZmax = np.array([Ax[iatm][0][2],Bx[iatm][0][0],Bx[iatm][0][1]])            
+            ZtauXt[iatm],ZtauXx[iatm] = posZigZagDerv(glTau,Tmm,XYZmax)
+        elif 'Block' in waveTypes[iatm]:
+            nx = 1
+            Tmm = Ax[iatm][0][:2]                        
+            XYZmax = np.array([Ax[iatm][0][2],Bx[iatm][0][0],Bx[iatm][0][1]])            
+            ZtauXt[iatm],ZtauXx[iatm] = posBlockDerv(glTau,Tmm,XYZmax)
+        tauX = np.arange(1.,nWaves[1]+1-nx)[:,nxs]*glTau  #Xwaves x ngl
+        if nx:    
+            StauX[iatm][:-nx] = np.ones_like(Ax)[iatm,nx:,:,nxs]*np.sin(twopi*tauX)[nxs,:,nxs,:]   #atoms X waves X 3(xyz) X ngl
+            CtauX[iatm][:-nx] = np.ones_like(Bx)[iatm,nx:,:,nxs]*np.cos(twopi*tauX)[nxs,:,nxs,:]   #ditto
+        else:
+            StauX[iatm] = np.ones_like(Ax)[iatm,:,:,nxs]*np.sin(twopi*tauX)[nxs,:,nxs,:]   #atoms X waves X 3(xyz) X ngl
+            CtauX[iatm] = np.ones_like(Bx)[iatm,:,:,nxs]*np.cos(twopi*tauX)[nxs,:,nxs,:]   #ditto
+#    GSASIIpath.IPyBreak()
+    if nWaves[0]:
+        tauF = np.arange(1.,nWaves[0]+1-nf)[:,nxs]*glTau  #Fwaves x ngl
+        StauF = np.ones_like(Af)[:,:,nxs]*np.sin(twopi*tauF)[nxs,:,:] #also dFmod/dAf
+        CtauF = np.ones_like(Bf)[:,:,nxs]*np.cos(twopi*tauF)[nxs,:,:] #also dFmod/dBf
+    else:
+        StauF = 1.0
+        CtauF = 1.0
+    if nWaves[2]:
+        tauU = np.arange(1.,nWaves[2]+1)[:,nxs]*glTau     #Uwaves x ngl
+        StauU = np.ones_like(Au)[:,:,:,:,nxs]*np.sin(twopi*tauU)[nxs,:,nxs,nxs,:]   #also dUmodA/dAu
+        CtauU = np.ones_like(Bu)[:,:,:,:,nxs]*np.cos(twopi*tauU)[nxs,:,nxs,nxs,:]   #also dUmodB/dBu
+        UmodA = Au[:,:,:,:,nxs]*StauU #atoms x waves x 3x3 x ngl
+        UmodB = Bu[:,:,:,:,nxs]*CtauU #ditto
+#derivs need to be ops x atoms x waves x 6uij; ops x atoms x waves x ngl x 6uij before sum
+        StauU = np.rollaxis(np.rollaxis(np.swapaxes(StauU,2,4),-1),-1)
+        CtauU = np.rollaxis(np.rollaxis(np.swapaxes(CtauU,2,4),-1),-1)
+    else:
+        StauU = 1.0
+        CtauU = 1.0
+        UmodA = 0.
+        UmodB = 0.
+    return waveShapes,[StauF,CtauF],[StauX,CtauX,ZtauXt,ZtauXx],[StauU,CtauU],UmodA+UmodB
+    
+def ModulationDerv(H,HP,Hij,nWaves,waveShapes,Fmod,Xmod,UmodAB,SCtauF,SCtauX,SCtauU,glTau,glWt):
+    '''
+    H: array ops X hklt proj to hkl
+    HP: array nRefBlk x ops X hklt proj to hkl
+    Hij: array 2pi^2[a*^2h^2 b*^2k^2 c*^2l^2 a*b*hk a*c*hl b*c*kl] of projected hklm to hkl space
+    '''
+   
+    Mf = [H.shape[0],]+list(waveShapes[0])    #=[ops,atoms,waves,2] (sin+cos frac mods)
+    dGdMfC = np.zeros(Mf)
+    dGdMfS = np.zeros(Mf)
+    Mx = [H.shape[0],]+list(waveShapes[1])   #=[ops,atoms,waves,6] (sin+cos pos mods)
+    dGdMxC = np.zeros(Mx)
+    dGdMxS = np.zeros(Mx)
+    Mu = [H.shape[0],]+list(waveShapes[2])    #=[ops,atoms,waves,12] (sin+cos Uij mods)
+    dGdMuC = np.zeros(Mu)
+    dGdMuS = np.zeros(Mu)
+    
+    D = twopi*H[:,3][:,nxs]*glTau[nxs,:]              #m*e*tau; ops X ngl
+    HdotX = twopi*np.inner(HP,Xmod)        #ops x atoms X ngl
+    HdotXD = HdotX+D[:,nxs,:]
+    if nWaves[2]:
+        Umod = np.swapaxes((UmodAB),2,4)      #atoms x waves x ngl x 3x3 (symmetric so I can do this!) 
+        HuH = np.sum(HP[:,nxs,nxs,nxs]*np.inner(HP,Umod),axis=-1)    #ops x atoms x waves x ngl
+        HuH = np.sum(HP[:,nxs,nxs,nxs]*np.inner(HP,Umod),axis=-1)    #ops x atoms x waves x ngl
+        HbH = np.exp(-np.sum(HuH,axis=-2)) # ops x atoms x ngl; sum waves - OK vs Modulation version
+        part1 = -np.exp(-HuH)*Fmod    #ops x atoms x waves x ngl
+        dUdAu = Hij[:,nxs,nxs,nxs,:]*np.rollaxis(G2lat.UijtoU6(SCtauU[0]),0,4)[nxs,:,:,:,:]    #ops x atoms x waves x ngl x 6sinUij
+        dUdBu = Hij[:,nxs,nxs,nxs,:]*np.rollaxis(G2lat.UijtoU6(SCtauU[1]),0,4)[nxs,:,:,:,:]    #ops x atoms x waves x ngl x 6cosUij
+        dGdMuCa = np.sum(part1[:,:,:,:,nxs]*dUdAu*np.cos(HdotXD)[:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,:,nxs],axis=-2)   #ops x atoms x waves x 6uij; G-L sum
+        dGdMuCb = np.sum(part1[:,:,:,:,nxs]*dUdBu*np.cos(HdotXD)[:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+        dGdMuC = np.concatenate((dGdMuCa,dGdMuCb),axis=-1)   #ops x atoms x waves x 12uij
+        dGdMuSa = np.sum(part1[:,:,:,:,nxs]*dUdAu*np.sin(HdotXD)[:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,:,nxs],axis=-2)   #ops x atoms x waves x 6uij; G-L sum
+        dGdMuSb = np.sum(part1[:,:,:,:,nxs]*dUdBu*np.sin(HdotXD)[:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+        dGdMuS = np.concatenate((dGdMuSa,dGdMuSb),axis=-1)   #ops x atoms x waves x 12uij
+    else:
+        HbH = np.ones_like(HdotX)
+    dHdXA = twopi*HP[:,nxs,nxs,nxs,:]*np.swapaxes(SCtauX[0],-1,-2)[nxs,:,:,:,:]    #ops x atoms x sine waves x ngl x xyz
+    dHdXB = twopi*HP[:,nxs,nxs,nxs,:]*np.swapaxes(SCtauX[1],-1,-2)[nxs,:,:,:,:]    #ditto - cos waves
+# ops x atoms x waves x 2xyz - real part - good
+    dGdMxCa = -np.sum((Fmod*HbH)[:,:,nxs,:,nxs]*(dHdXA*np.sin(HdotXD)[:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMxCb = -np.sum((Fmod*HbH)[:,:,nxs,:,nxs]*(dHdXB*np.sin(HdotXD)[:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMxC = np.concatenate((dGdMxCa,dGdMxCb),axis=-1)
+# ops x atoms x waves x 2xyz - imag part - good
+    dGdMxSa = np.sum((Fmod*HbH)[:,:,nxs,:,nxs]*(dHdXA*np.cos(HdotXD)[:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)    
+    dGdMxSb = np.sum((Fmod*HbH)[:,:,nxs,:,nxs]*(dHdXB*np.cos(HdotXD)[:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)    
+    dGdMxS = np.concatenate((dGdMxSa,dGdMxSb),axis=-1)
+# ZigZag/Block waves - problems here?
+    dHdXZt = -twopi*HP[:,nxs,nxs,nxs,:]*np.swapaxes(SCtauX[2],-1,-2)[nxs,:,:,:,:]          #ops x atoms x ngl x 2(ZigZag/Block Tminmax)
+    dHdXZx = twopi*HP[:,nxs,nxs,:]*np.swapaxes(SCtauX[3],-1,-2)[nxs,:,:,:]          #ops x atoms x ngl x 3(ZigZag/Block XYZmax)
+    dGdMzCt = -np.sum((Fmod*HbH)[:,:,nxs,:,nxs]*(dHdXZt*np.sin(HdotXD)[:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMzCx = -np.sum((Fmod*HbH)[:,:,:,nxs]*(dHdXZx*np.sin(HdotXD)[:,:,:,nxs])*glWt[nxs,nxs,:,nxs],axis=-2)
+    dGdMzC = np.concatenate((np.sum(dGdMzCt,axis=-1),dGdMzCx),axis=-1)
+    dGdMzSt = np.sum((Fmod*HbH)[:,:,nxs,:,nxs]*(dHdXZt*np.cos(HdotXD)[:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMzSx = np.sum((Fmod*HbH)[:,:,:,nxs]*(dHdXZx*np.cos(HdotXD)[:,:,:,nxs])*glWt[nxs,nxs,:,nxs],axis=-2)
+    dGdMzS = np.concatenate((np.sum(dGdMzSt,axis=-1),dGdMzSx),axis=-1)
+#    GSASIIpath.IPyBreak()
+    return [dGdMfC,dGdMfS],[dGdMxC,dGdMxS],[dGdMuC,dGdMuS],[dGdMzC,dGdMzS]
     
 def posFourier(tau,psin,pcos):
-    A = np.array([ps[:,np.newaxis]*np.sin(2*np.pi*(i+1)*tau) for i,ps in enumerate(psin)])
-    B = np.array([pc[:,np.newaxis]*np.cos(2*np.pi*(i+1)*tau) for i,pc in enumerate(pcos)])
+    A = np.array([ps[:,nxs]*np.sin(2*np.pi*(i+1)*tau) for i,ps in enumerate(psin)])
+    B = np.array([pc[:,nxs]*np.cos(2*np.pi*(i+1)*tau) for i,pc in enumerate(pcos)])
     return np.sum(A,axis=0)+np.sum(B,axis=0)
     
-def posSawtooth(tau,Toff,slopes):
-    Tau = (tau-Toff)%1.
-    A = slopes[:,np.newaxis]*Tau
+def posZigZag(T,Tmm,Xmax):
+    DT = Tmm[1]-Tmm[0]
+    Su = 2.*Xmax/DT
+    Sd = 2.*Xmax/(1.-DT)
+    A = np.array([np.where(Tmm[0] < t%1. <= Tmm[1],-Xmax+Su*((t-Tmm[0])%1.),Xmax-Sd*((t-Tmm[1])%1.)) for t in T])
     return A
+    
+def posZigZagDerv(T,Tmm,Xmax):
+    DT = Tmm[1]-Tmm[0]
+    Su = 2.*Xmax/DT
+    Sd = 2.*Xmax/(1.-DT)
+    dAdT = np.zeros((2,3,len(T)))
+    dAdT[0] = np.array([np.where(Tmm[0] < t <= Tmm[1],Su*(t-Tmm[0]-1)/DT,-Sd*(t-Tmm[1])/(1.-DT)) for t in T]).T
+    dAdT[1] = np.array([np.where(Tmm[0] < t <= Tmm[1],-Su*(t-Tmm[0])/DT,Sd*(t-Tmm[1])/(1.-DT)) for t in T]).T
+    dAdX = np.ones(3)[:,nxs]*np.array([np.where(Tmm[0] < t%1. <= Tmm[1],-1.+2.*(t-Tmm[0])/DT,1.-2.*(t-Tmm[1])%1./DT) for t in T])
+    return dAdT,dAdX
 
-def posZigZag(tau,Toff,slopes):
-    Tau = (tau-Toff)%1.
-    A = np.where(Tau <= 0.5,slopes[:,np.newaxis]*Tau,slopes[:,np.newaxis]*(1.-Tau))
+def posBlock(T,Tmm,Xmax):
+    A = np.array([np.where(Tmm[0] < t%1. <= Tmm[1],-Xmax,Xmax) for t in T])
     return A
+    
+def posBlockDerv(T,Tmm,Xmax):
+    dAdT = np.zeros((2,3,len(T)))
+    ind = np.searchsorted(T,Tmm)
+    dAdT[0,:,ind[0]] = -Xmax/len(T)
+    dAdT[1,:,ind[1]] = Xmax/len(T)
+    dAdX = np.ones(3)[:,nxs]*np.array([np.where(Tmm[0] < t <= Tmm[1],-1.,1.) for t in T])  #OK
+    return dAdT,dAdX
     
 def fracCrenel(tau,Toff,Twid):
     Tau = (tau-Toff)%1.
@@ -845,9 +1176,162 @@ def fracCrenel(tau,Toff,Twid):
     return A
     
 def fracFourier(tau,fsin,fcos):
-    A = np.array([fs[:,np.newaxis]*np.sin(2.*np.pi*(i+1)*tau) for i,fs in enumerate(fsin)])
-    B = np.array([fc[:,np.newaxis]*np.cos(2.*np.pi*(i+1)*tau) for i,fc in enumerate(fcos)])
+    A = np.array([fs[:,nxs]*np.sin(2.*np.pi*(i+1)*tau) for i,fs in enumerate(fsin)])
+    B = np.array([fc[:,nxs]*np.cos(2.*np.pi*(i+1)*tau) for i,fc in enumerate(fcos)])
     return np.sum(A,axis=0)+np.sum(B,axis=0)
+    
+def ApplyModulation(data,tau):
+    '''Applies modulation to drawing atom positions & Uijs for given tau
+    '''
+    generalData = data['General']
+    SGData = generalData['SGData']
+    SSGData = generalData['SSGData']
+    cx,ct,cs,cia = generalData['AtomPtrs']
+    drawingData = data['Drawing']
+    dcx,dct,dcs,dci = drawingData['atomPtrs']
+    atoms = data['Atoms']
+    drawAtoms = drawingData['Atoms']
+    Fade = np.zeros(len(drawAtoms))
+    for atom in atoms:    
+        atxyz = G2spc.MoveToUnitCell(np.array(atom[cx:cx+3]))[0]
+        atuij = np.array(atom[cia+2:cia+8])
+        waveType = atom[-1]['SS1']['waveType']
+        Sfrac = atom[-1]['SS1']['Sfrac']
+        Spos = atom[-1]['SS1']['Spos']
+        Sadp = atom[-1]['SS1']['Sadp']
+        indx = FindAtomIndexByIDs(drawAtoms,dci,[atom[cia+8],],True)
+        for ind in indx:
+            drawatom = drawAtoms[ind]
+            opr = drawatom[dcs-1]
+            sop,ssop,icent = G2spc.OpsfromStringOps(opr,SGData,SSGData)
+            sdet,ssdet,dtau,dT,tauT = G2spc.getTauT(tau,sop,ssop,atxyz)
+            tauT *= icent       #invert wave on -1
+            wave = np.zeros(3)
+            uwave = np.zeros(6)
+            #how do I handle Sfrac? - fade the atoms?
+            if len(Sfrac):
+                scof = []
+                ccof = []
+                for i,sfrac in enumerate(Sfrac):
+                    if not i and 'Crenel' in waveType:
+                        Fade[ind] += fracCrenel(tauT,sfrac[0][0],sfrac[0][1])
+                    else:
+                        scof.append(sfrac[0][0])
+                        ccof.append(sfrac[0][1])
+                    if len(scof):
+                        Fade[ind] += np.sum(fracFourier(tauT,scof,ccof))                            
+            if len(Spos):
+                scof = []
+                ccof = []
+                for i,spos in enumerate(Spos):
+                    if waveType in ['ZigZag','Block'] and not i:
+                        Tminmax = spos[0][:2]
+                        XYZmax = np.array(spos[0][2:])
+                        if waveType == 'Block':
+                            wave = np.array(posBlock([tauT,],Tminmax,XYZmax))[0]
+                        elif waveType == 'ZigZag':
+                            wave = np.array(posZigZag([tauT,],Tminmax,XYZmax))[0]
+                    else:
+                        scof.append(spos[0][:3])
+                        ccof.append(spos[0][3:])
+                if len(scof):
+                    wave += np.sum(posFourier(tauT,np.array(scof),np.array(ccof)),axis=1)
+            if len(Sadp):
+                scof = []
+                ccof = []
+                for i,sadp in enumerate(Sadp):
+                    scof.append(sadp[0][:6])
+                    ccof.append(sadp[0][6:])
+                uwave += np.sum(posFourier(tauT,np.array(scof),np.array(ccof)),axis=1)
+            if atom[cia] == 'A':                    
+                X,U = G2spc.ApplyStringOps(opr,SGData,atxyz+wave,atuij+uwave)
+                drawatom[dcx:dcx+3] = X
+                drawatom[dci-6:dci] = U
+            else:
+                X = G2spc.ApplyStringOps(opr,SGData,atxyz+wave)
+                drawatom[dcx:dcx+3] = X
+    return drawAtoms,Fade
+    
+# gauleg.py Gauss Legendre numerical quadrature, x and w computation 
+# integrate from a to b using n evaluations of the function f(x)  
+# usage: from gauleg import gaulegf         
+#        x,w = gaulegf( a, b, n)                                
+#        area = 0.0                                            
+#        for i in range(1,n+1):          #  yes, 1..n                   
+#          area += w[i]*f(x[i])                                    
+
+import math
+def gaulegf(a, b, n):
+  x = range(n+1) # x[0] unused
+  w = range(n+1) # w[0] unused
+  eps = 3.0E-14
+  m = (n+1)/2
+  xm = 0.5*(b+a)
+  xl = 0.5*(b-a)
+  for i in range(1,m+1):
+    z = math.cos(3.141592654*(i-0.25)/(n+0.5))
+    while True:
+      p1 = 1.0
+      p2 = 0.0
+      for j in range(1,n+1):
+        p3 = p2
+        p2 = p1
+        p1 = ((2.0*j-1.0)*z*p2-(j-1.0)*p3)/j
+
+      pp = n*(z*p1-p2)/(z*z-1.0)
+      z1 = z
+      z = z1 - p1/pp
+      if abs(z-z1) <= eps:
+	    break
+
+    x[i] = xm - xl*z
+    x[n+1-i] = xm + xl*z
+    w[i] = 2.0*xl/((1.0-z*z)*pp*pp)
+    w[n+1-i] = w[i]
+  return np.array(x), np.array(w)
+# end gaulegf 
+    
+    
+def BessJn(nmax,x):
+    ''' compute Bessel function J(n,x) from scipy routine & recurrance relation
+    returns sequence of J(n,x) for n in range [-nmax...0...nmax]
+    
+    :param  integer nmax: maximul order for Jn(x)
+    :param  float x: argument for Jn(x)
+    
+    :returns numpy array: [J(-nmax,x)...J(0,x)...J(nmax,x)]
+    
+    '''
+    import scipy.special as sp
+    bessJn = np.zeros(2*nmax+1)
+    bessJn[nmax] = sp.j0(x)
+    bessJn[nmax+1] = sp.j1(x)
+    bessJn[nmax-1] = -bessJn[nmax+1]
+    for i in range(2,nmax+1):
+        bessJn[i+nmax] = 2*(i-1)*bessJn[nmax+i-1]/x-bessJn[nmax+i-2]
+        bessJn[nmax-i] = bessJn[i+nmax]*(-1)**i
+    return bessJn
+    
+def BessIn(nmax,x):
+    ''' compute modified Bessel function I(n,x) from scipy routines & recurrance relation
+    returns sequence of I(n,x) for n in range [-nmax...0...nmax]
+    
+    :param  integer nmax: maximul order for In(x)
+    :param  float x: argument for In(x)
+    
+    :returns numpy array: [I(-nmax,x)...I(0,x)...I(nmax,x)]
+    
+    '''
+    import scipy.special as sp
+    bessIn = np.zeros(2*nmax+1)
+    bessIn[nmax] = sp.i0(x)
+    bessIn[nmax+1] = sp.i1(x)
+    bessIn[nmax-1] = bessIn[nmax+1]
+    for i in range(2,nmax+1):
+        bessIn[i+nmax] = bessIn[nmax+i-2]-2*(i-1)*bessIn[nmax+i-1]/x
+        bessIn[nmax-i] = bessIn[i+nmax]
+    return bessIn
+        
     
 ################################################################################
 ##### distance, angle, planes, torsion stuff 
@@ -1847,61 +2331,6 @@ def OmitMap(data,reflDict,pgbar=None):
     print 'Omit map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size)
     return mapData
     
-def Fourier4DMap(data,reflDict):
-    '''default doc string
-    
-    :param type name: description
-    
-    :returns: type name: description
-    
-    '''
-    generalData = data['General']
-    mapData = generalData['4DmapData']
-    dmin = mapData['Resolution']
-    SGData = generalData['SGData']
-    SSGData = generalData['SSGData']
-    SSGMT = np.array([ops[0].T for ops in SSGData['SSGOps']])
-    SSGT = np.array([ops[1] for ops in SSGData['SSGOps']])
-    cell = generalData['Cell'][1:8]        
-    A = G2lat.cell2A(cell[:6])
-    maxM = generalData['SuperVec'][2]
-    Hmax = G2lat.getHKLmax(dmin,SGData,A)+[maxM,]
-    adjHKLmax(SGData,Hmax)
-    Hmax = np.asarray(Hmax,dtype='i')+1
-    Fhkl = np.zeros(shape=2*Hmax,dtype='c16')
-    time0 = time.time()
-    for iref,ref in enumerate(reflDict['RefList']):
-        if ref[5] > dmin:
-            Fosq,Fcsq,ph = ref[9:12]
-            Uniq = np.inner(ref[:4],SSGMT)
-            Phi = np.inner(ref[:4],SSGT)
-            for i,hkl in enumerate(Uniq):        #uses uniq
-                hkl = np.asarray(hkl,dtype='i')
-                dp = 360.*Phi[i]                #and phi
-                a = cosd(ph+dp)
-                b = sind(ph+dp)
-                phasep = complex(a,b)
-                phasem = complex(a,-b)
-                if 'Fobs' in mapData['MapType']:
-                    F = np.where(Fosq>0.,np.sqrt(Fosq),0.)
-                    h,k,l,m = hkl+Hmax
-                    Fhkl[h,k,l,m] = F*phasep
-                    h,k,l,m = -hkl+Hmax
-                    Fhkl[h,k,l,m] = F*phasem
-                elif 'delt-F' in mapData['MapType']:
-                    dF = np.where(Fosq>0.,np.sqrt(Fosq),0.)-np.sqrt(Fcsq)
-                    h,k,l,m = hkl+Hmax
-                    Fhkl[h,k,l,m] = dF*phasep
-                    h,k,l,m = -hkl+Hmax
-                    Fhkl[h,k,l,m] = dF*phasem
-    rho = fft.fftn(fft.fftshift(Fhkl))/cell[6]
-    print 'Fourier map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size)
-    mapData['Type'] = reflDict['Type']
-    mapData['rho'] = np.real(rho)
-    mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
-    mapData['minmax'] = [np.max(mapData['rho']),np.min(mapData['rho'])]
-    return mapData
-
 def FourierMap(data,reflDict):
     '''default doc string
     
@@ -1931,10 +2360,10 @@ def FourierMap(data,reflDict):
             for i,hkl in enumerate(Uniq):        #uses uniq
                 hkl = np.asarray(hkl,dtype='i')
                 dp = 360.*Phi[i]                #and phi
-                a = cosd(ph)
-                b = sind(ph)
-                phasep = complex(a,b)+dp
-                phasem = complex(a,-b)-dp
+                a = cosd(ph+dp)
+                b = sind(ph+dp)
+                phasep = complex(a,b)
+                phasem = complex(a,-b)
                 if 'Fobs' in mapData['MapType']:
                     F = np.where(Fosq>0.,np.sqrt(Fosq),0.)
                     h,k,l = hkl+Hmax
@@ -1970,8 +2399,74 @@ def FourierMap(data,reflDict):
     mapData['rho'] = np.real(rho)
     mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
     mapData['minmax'] = [np.max(mapData['rho']),np.min(mapData['rho'])]
-    return mapData
     
+def Fourier4DMap(data,reflDict):
+    '''default doc string
+    
+    :param type name: description
+    
+    :returns: type name: description
+    
+    '''
+    generalData = data['General']
+    map4DData = generalData['4DmapData']
+    mapData = generalData['Map']
+    dmin = mapData['Resolution']
+    SGData = generalData['SGData']
+    SSGData = generalData['SSGData']
+    SSGMT = np.array([ops[0].T for ops in SSGData['SSGOps']])
+    SSGT = np.array([ops[1] for ops in SSGData['SSGOps']])
+    cell = generalData['Cell'][1:8]        
+    A = G2lat.cell2A(cell[:6])
+    maxM = 4
+    Hmax = G2lat.getHKLmax(dmin,SGData,A)+[maxM,]
+    adjHKLmax(SGData,Hmax)
+    Hmax = np.asarray(Hmax,dtype='i')+1
+    Fhkl = np.zeros(shape=2*Hmax,dtype='c16')
+    time0 = time.time()
+    for iref,ref in enumerate(reflDict['RefList']):
+        if ref[5] > dmin:
+            Fosq,Fcsq,ph = ref[9:12]
+            Fosq = np.where(Fosq>0.,Fosq,0.)    #can't use Fo^2 < 0
+            Uniq = np.inner(ref[:4],SSGMT)
+            Phi = np.inner(ref[:4],SSGT)
+            for i,hkl in enumerate(Uniq):        #uses uniq
+                hkl = np.asarray(hkl,dtype='i')
+                dp = 360.*Phi[i]                #and phi
+                a = cosd(ph+dp)
+                b = sind(ph+dp)
+                phasep = complex(a,b)
+                phasem = complex(a,-b)
+                if 'Fobs' in mapData['MapType']:
+                    F = np.sqrt(Fosq)
+                    h,k,l,m = hkl+Hmax
+                    Fhkl[h,k,l,m] = F*phasep
+                    h,k,l,m = -hkl+Hmax
+                    Fhkl[h,k,l,m] = F*phasem
+                elif 'Fcalc' in mapData['MapType']:
+                    F = np.sqrt(Fcsq)
+                    h,k,l,m = hkl+Hmax
+                    Fhkl[h,k,l,m] = F*phasep
+                    h,k,l,m = -hkl+Hmax
+                    Fhkl[h,k,l,m] = F*phasem                    
+                elif 'delt-F' in mapData['MapType']:
+                    dF = np.sqrt(Fosq)-np.sqrt(Fcsq)
+                    h,k,l,m = hkl+Hmax
+                    Fhkl[h,k,l,m] = dF*phasep
+                    h,k,l,m = -hkl+Hmax
+                    Fhkl[h,k,l,m] = dF*phasem
+    SSrho = fft.fftn(fft.fftshift(Fhkl))/cell[6]          #4D map 
+    rho = fft.fftn(fft.fftshift(Fhkl[:,:,:,maxM+1]))/cell[6]    #3D map
+    map4DData['rho'] = np.real(SSrho)
+    map4DData['rhoMax'] = max(np.max(map4DData['rho']),-np.min(map4DData['rho']))
+    map4DData['minmax'] = [np.max(map4DData['rho']),np.min(map4DData['rho'])]
+    map4DData['Type'] = reflDict['Type']
+    mapData['Type'] = reflDict['Type']
+    mapData['rho'] = np.real(rho)
+    mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
+    mapData['minmax'] = [np.max(mapData['rho']),np.min(mapData['rho'])]
+    print 'Fourier map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size)
+
 # map printing for testing purposes
 def printRho(SGLaue,rho,rhoMax):                          
     '''default doc string
@@ -2158,7 +2653,7 @@ def ChargeFlip(data,reflDict,pgbar):
             break
     np.seterr(**old)
     print ' Charge flip time: %.4f'%(time.time()-time0),'no. elements: %d'%(Ehkl.size)
-    CErho = np.real(fft.fftn(fft.fftshift(CEhkl)))
+    CErho = np.real(fft.fftn(fft.fftshift(CEhkl)))/10.  #? to get on same scale as e-map
     print ' No.cycles = ',Ncyc,'Residual Rcf =%8.3f%s'%(Rcf,'%')+' Map size:',CErho.shape
     roll = findOffset(SGData,A,CEhkl)               #CEhkl needs to be just the observed set, not the full set!
         
@@ -2262,7 +2757,7 @@ def SSChargeFlip(data,reflDict,pgbar):
     cell = generalData['Cell'][1:8]        
     A = G2lat.cell2A(cell[:6])
     Vol = cell[6]
-    maxM = generalData['SuperVec'][2]
+    maxM = 4
     Hmax = np.asarray(G2lat.getHKLmax(dmin,SGData,A)+[maxM,],dtype='i')+1
     adjHKLmax(SGData,Hmax)
     Ehkl = np.zeros(shape=2*Hmax,dtype='c16')       #2X64bits per complex no.
@@ -2320,8 +2815,8 @@ def SSChargeFlip(data,reflDict,pgbar):
             break
     np.seterr(**old)
     print ' Charge flip time: %.4f'%(time.time()-time0),'no. elements: %d'%(Ehkl.size)
-    CErho = np.real(fft.fftn(fft.fftshift(CEhkl[:,:,:,maxM+1])))
-    SSrho = np.real(fft.fftn(fft.fftshift(CEhkl)))
+    CErho = np.real(fft.fftn(fft.fftshift(CEhkl[:,:,:,maxM+1])))/10.    #? to get on same scale as e-map
+    SSrho = np.real(fft.fftn(fft.fftshift(CEhkl)))/10.                  #? ditto
     print ' No.cycles = ',Ncyc,'Residual Rcf =%8.3f%s'%(Rcf,'%')+' Map size:',CErho.shape
     roll = findSSOffset(SGData,SSGData,A,CEhkl)               #CEhkl needs to be just the observed set, not the full set!
 
@@ -2338,6 +2833,35 @@ def SSChargeFlip(data,reflDict,pgbar):
     map4DData['Type'] = reflDict['Type']
     return mapData,map4DData
     
+def getRho(xyz,mapData):
+    ''' get scattering density at a point by 8-point interpolation
+    param xyz: coordinate to be probed
+    param: mapData: dict of map data
+    
+    :returns: density at xyz
+    '''
+    rollMap = lambda rho,roll: np.roll(np.roll(np.roll(rho,roll[0],axis=0),roll[1],axis=1),roll[2],axis=2)
+    if not len(mapData):
+        return 0.0
+    rho = copy.copy(mapData['rho'])     #don't mess up original
+    if not len(rho):
+        return 0.0
+    mapShape = np.array(rho.shape)
+    mapStep = 1./mapShape
+    X = np.array(xyz)%1.    #get into unit cell
+    I = np.array(X*mapShape,dtype='int')
+    D = X-I*mapStep         #position inside map cell
+    D12 = D[0]*D[1]
+    D13 = D[0]*D[2]
+    D23 = D[1]*D[2]
+    D123 = np.prod(D)
+    Rho = rollMap(rho,-I)    #shifts map so point is in corner
+    R = Rho[0,0,0]*(1.-np.sum(D))+Rho[1,0,0]*D[0]+Rho[0,1,0]*D[1]+Rho[0,0,1]*D[2]+  \
+        Rho[1,1,1]*D123+Rho[0,1,1]*(D23-D123)+Rho[1,0,1]*(D13-D123)+Rho[1,1,0]*(D12-D123)+  \
+        Rho[0,0,0]*(D12+D13+D23-D123)-Rho[0,0,1]*(D13+D23-D123)-    \
+        Rho[0,1,0]*(D23+D12-D123)-Rho[1,0,0]*(D13+D12-D123)    
+    return R
+       
 def SearchMap(generalData,drawingData,Neg=False):
     '''Does a search of a density map for peaks meeting the criterion of peak
     height is greater than mapData['cutOff']/100 of mapData['rhoMax'] where 
@@ -3190,9 +3714,8 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
     :param type name: description
     
     :returns: type name: description
-    
     '''
-    
+   
     global tsum
     tsum = 0.
     
