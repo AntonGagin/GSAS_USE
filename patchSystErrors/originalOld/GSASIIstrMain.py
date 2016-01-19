@@ -5,11 +5,11 @@
 
 '''
 ########### SVN repository information ###################
-# $Date: 2015-05-14 11:31:16 -0400 (Thu, 14 May 2015) $
+# $Date: 2015-12-14 13:49:34 -0500 (Mon, 14 Dec 2015) $
 # $Author: vondreele $
-# $Revision: 1852 $
-# $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIstrMain.py $
-# $Id: GSASIIstrMain.py 1852 2015-05-14 15:31:16Z vondreele $
+# $Revision: 2091 $
+# $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASIIstrMain.py $
+# $Id: GSASIIstrMain.py 2091 2015-12-14 18:49:34Z vondreele $
 ########### SVN repository information ###################
 import sys
 import os
@@ -24,7 +24,7 @@ import numpy.ma as ma
 import numpy.linalg as nl
 import scipy.optimize as so
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1852 $")
+GSASIIpath.SetVersionNumber("$Revision: 2091 $")
 import GSASIIlattice as G2lat
 import GSASIIspc as G2spc
 import GSASIImapvars as G2mv
@@ -163,6 +163,9 @@ def Refine(GPXfile,dlg):
     calcControls['BLtables'] = BLtables
     calcControls['maxSSwave'] = maxSSwave
     hapVary,hapDict,controlDict = G2stIO.GetHistogramPhaseData(Phases,Histograms,pFile=printFile)
+    TwConstr,TwFixed = G2stIO.makeTwinFrConstr(Phases,Histograms,hapVary)
+    constrDict += TwConstr
+    fixedList += TwFixed
     calcControls.update(controlDict)
     histVary,histDict,controlDict = G2stIO.GetHistogramData(Histograms,pFile=printFile)
     calcControls.update(controlDict)
@@ -394,8 +397,7 @@ def SeqRefine(GPXfile,dlg):
             sigDict.update(G2mv.ComputeDepESD(covMatrix,varyList,parmDict))
     
             # a dict with values & esds for dependent (constrained) parameters
-            depParmDict = {i:(parmDict[i],sigDict[i]) for i in varyListStart
-                           if i not in varyList}
+            depParmDict = {i:(parmDict[i],sigDict[i]) for i in varyListStart if i not in varyList}
             newCellDict = copy.deepcopy(G2stMth.GetNewCellParms(parmDict,varyList))
             newAtomDict = copy.deepcopy(G2stMth.ApplyXYZshifts(parmDict,varyList))
             histRefData = {
@@ -581,12 +583,12 @@ def PrintDistAngle(DisAglCtls,DisAglData,out=sys.stdout):
     SGData = DisAglData['SGData']
     SGtext,SGtable = G2spc.SGPrint(SGData)
     for line in SGtext: MyPrint(line)
-    if len(SGtable):
+    if len(SGtable) > 1:
         for i,item in enumerate(SGtable[::2]):
             line = ' %s %s'%(item.ljust(30),SGtable[2*i+1].ljust(30))
             MyPrint(line)   
     else:
-        MyPrint(' ( 1)    %s'%(SGtable[0])) 
+        MyPrint(' ( 1)    %s'%(SGtable[0])) #triclinic case
     Cell = DisAglData['Cell']
     
     Amat,Bmat = G2lat.cell2AB(Cell[:6])
@@ -728,7 +730,6 @@ def BestPlane(PlaneData):
     for i,xyz in enumerate(XYZ):
         print ' %6s%10.3f%10.3f%10.3f'%(Atoms[i][1].ljust(6),xyz[0],xyz[1],xyz[2])
     print '\n Best plane RMS X =%8.3f, Y =%8.3f, Z =%8.3f'%(Evec[Order[2]],Evec[Order[1]],Evec[Order[0]])   
-
             
 def main():
     'Needs a doc string'
