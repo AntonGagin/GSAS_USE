@@ -5,11 +5,11 @@
 
 '''
 ########### SVN repository information ###################
-# $Date: 2015-06-08 11:05:00 -0400 (Mon, 08 Jun 2015) $
-# $Author: vondreele $
-# $Revision: 1882 $
-# $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIplot.py $
-# $Id: GSASIIplot.py 1882 2015-06-08 15:05:00Z vondreele $
+# $Date: 2015-12-24 22:10:30 -0500 (Thu, 24 Dec 2015) $
+# $Author: toby $
+# $Revision: 2108 $
+# $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASIIplot.py $
+# $Id: GSASIIplot.py 2108 2015-12-25 03:10:30Z toby $
 ########### SVN repository information ###################
 import math
 import time
@@ -25,7 +25,7 @@ import wx.glcanvas
 import matplotlib as mpl
 import mpl_toolkits.mplot3d.axes3d as mp3d
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1882 $")
+GSASIIpath.SetVersionNumber("$Revision: 2108 $")
 import GSASIIgrid as G2gd
 import GSASIIimage as G2img
 import GSASIIpwd as G2pwd
@@ -40,7 +40,8 @@ import GSASIIctrls as G2G
 import pytexture as ptx
 from  OpenGL.GL import *
 from OpenGL.GLU import *
-from OpenGL.GLE import *
+import OpenGL.GLE as gle
+#from OpenGL.GLE import *
 import gltext
 from matplotlib.backends.backend_wx import _load_bitmap
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as Canvas
@@ -63,9 +64,10 @@ npasind = lambda x: 180.*np.arcsin(x)/np.pi
 npatand = lambda x: 180.*np.arctan(x)/np.pi
 npatan2d = lambda x,y: 180.*np.arctan2(x,y)/np.pi
 GkDelta = unichr(0x0394)
+Gkrho = unichr(0x03C1)
     
 class G2PlotMpl(wx.Panel):    
-    'needs a doc string'
+    'Creates a Matplotlib 2-D plot in the GSAS-II graphics window'
     def __init__(self,parent,id=-1,dpi=None,**kwargs):
         wx.Panel.__init__(self,parent,id=id,**kwargs)
         mpl.rcParams['legend.fontsize'] = 10
@@ -81,13 +83,13 @@ class G2PlotMpl(wx.Panel):
         self.SetSizer(sizer)
         
 class G2PlotOgl(wx.Panel):
-    'needs a doc string'
+    'Creates an OpenGL plot in the GSAS-II graphics window'
     def __init__(self,parent,id=-1,dpi=None,**kwargs):
         self.figure = wx.Panel.__init__(self,parent,id=id,**kwargs)
         if 'win' in sys.platform:           #Windows (& Mac) already double buffered
             self.canvas = wx.glcanvas.GLCanvas(self,-1,**kwargs)
         else:                               #fix from Jim Hester for X systems
-            attribs = (wx.glcanvas.WX_GL_DOUBLEBUFFER,)         
+            attribs = (wx.glcanvas.WX_GL_DOUBLEBUFFER,)
             self.canvas = wx.glcanvas.GLCanvas(self,-1,attribList=attribs,**kwargs)
         # create GL context for wx > 2.8
         i,j= wx.__version__.split('.')[0:2]
@@ -102,7 +104,7 @@ class G2PlotOgl(wx.Panel):
         self.SetSizer(sizer)
         
 class G2Plot3D(wx.Panel):
-    'needs a doc string'
+    'Creates a 3D Matplotlib plot in the GSAS-II graphics window'
     def __init__(self,parent,id=-1,dpi=None,**kwargs):
         wx.Panel.__init__(self,parent,id=id,**kwargs)
         self.figure = mpl.figure.Figure(dpi=dpi,figsize=(6,6))
@@ -117,7 +119,7 @@ class G2Plot3D(wx.Panel):
         self.SetSizer(sizer)
                               
 class G2PlotNoteBook(wx.Panel):
-    'create a tabbed window for plotting'
+    'create a tabbed window for GSAS-II graphics'
     def __init__(self,parent,id=-1):
         wx.Panel.__init__(self,parent,id=id)
         #so one can't delete a plot page!!
@@ -223,7 +225,7 @@ class GSASIItoolbar(Toolbar):
         Toolbar.__init__(self,plotCanvas)
         self.plotCanvas = plotCanvas
         POSITION_OF_CONFIGURE_SUBPLOTS_BTN = 6 # remove one button, nos. start at 1!
-        self.DeleteToolByPos(POSITION_OF_CONFIGURE_SUBPLOTS_BTN)
+        self.DeleteToolByPos(POSITION_OF_CONFIGURE_SUBPLOTS_BTN)    #doesn't work in miniconda
         self.parent = self.GetParent()
         key = os.path.join(os.path.split(__file__)[0],'key.ico')
         self.AddSimpleTool(self.ON_MPL_KEY,_load_bitmap(key),'Key press','Select key press')
@@ -319,7 +321,8 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
         to F, F**2, etc. as requested
     '''
     from matplotlib.patches import Circle,CirclePolygon
-    global HKL,HKLF
+    global HKL,HKLF,HKLref
+    HKLref = hklRef
     
     def OnSCKeyPress(event):
         i = zones.index(Data['Zone'])
@@ -352,7 +355,7 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
         elif event.key in pwdrChoice and 'PWDR' in Name:
             Data['Type'] = pwdrChoice[event.key]            
             newPlot = True       
-        PlotSngl(G2frame,newPlot,Data,hklRef,Title)
+        PlotSngl(G2frame,newPlot,Data,HKLref,Title)
 
     def OnSCMotion(event):
         xpos = event.xdata
@@ -361,14 +364,13 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
             ypos = round(event.ydata)
             zpos = Data['Layer']
             if '100' in Data['Zone']:
-                HKLtxt = '(%3d,%3d,%3d)'%(zpos,xpos,ypos)
+                HKLtxt = '(%d,%d,%d)'%(zpos,xpos,ypos)
             elif '010' in Data['Zone']:
-                HKLtxt = '(%3d,%3d,%3d)'%(xpos,zpos,ypos)
+                HKLtxt = '(%d,%d,%d)'%(xpos,zpos,ypos)
             elif '001' in Data['Zone']:
-                HKLtxt = '(%3d,%3d,%3d)'%(xpos,ypos,zpos)
+                HKLtxt = '(%d,%d,%d)'%(xpos,ypos,zpos)
             Page.canvas.SetToolTipString(HKLtxt)
             G2frame.G2plotNB.status.SetStatusText('HKL = '+HKLtxt,0)
-            G2frame.G2plotNB.status.SetStatusText('Use K-box to set plot controls',1)
                 
     def OnSCPress(event):
         zpos = Data['Layer']
@@ -376,13 +378,10 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
         if xpos:
             pos = int(round(event.xdata)),int(round(event.ydata))
             if '100' in Data['Zone']:
-                Page.canvas.SetToolTipString('(picked:(%3d,%3d,%3d))'%(zpos,pos[0],pos[1]))
                 hkl = np.array([zpos,pos[0],pos[1]])
             elif '010' in Data['Zone']:
-                Page.canvas.SetToolTipString('(picked:(%3d,%3d,%3d))'%(pos[0],zpos,pos[1]))
                 hkl = np.array([pos[0],zpos,pos[1]])
             elif '001' in Data['Zone']:
-                Page.canvas.SetToolTipString('(picked:(%3d,%3d,%3d))'%(pos[0],pos[1],zpos))
                 hkl = np.array([pos[0],pos[1],zpos])
             h,k,l = hkl
             hklf = HKLF[np.where(np.all(HKL-hkl == [0,0,0],axis=1))]
@@ -390,6 +389,12 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
                 Fosq,sig,Fcsq = hklf[0]
                 HKLtxt = '( %.2f %.3f %.2f %.2f)'%(Fosq,sig,Fcsq,(Fosq-Fcsq)/(scale*sig))
                 G2frame.G2plotNB.status.SetStatusText('Fosq, sig, Fcsq, delFsq/sig = '+HKLtxt,1)
+                
+    def OnPick(event):
+        pick = event.artist
+        HKLtext = pick.get_gid()
+        Page.canvas.SetToolTipString(HKLtext)
+        G2frame.G2plotNB.status.SetStatusText('H = '+HKLtext,0)
                                  
     Name = G2frame.PatternTree.GetItemText(G2frame.PatternId)
     if not Title:
@@ -408,6 +413,7 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
         Page = G2frame.G2plotNB.nb.GetPage(plotNum)
         Page.canvas.mpl_connect('button_press_event', OnSCPress)
         Page.canvas.mpl_connect('motion_notify_event', OnSCMotion)
+        Page.canvas.mpl_connect('pick_event', OnPick)
         Page.canvas.mpl_connect('key_press_event', OnSCKeyPress)
         Page.keyPress = OnSCKeyPress
         Page.Choice = (' key press','i: increase scale','d: decrease scale',
@@ -417,8 +423,6 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
         if 'HKLF' in Name:
             Page.Choice += ('w: select |DFsq|/sig','1: select |DFsq|>sig','3: select |DFsq|>3sig',)
     Page.SetFocus()
-    
-    G2frame.G2plotNB.status.SetStatusText('Use K-box to set plot controls',1)
     Plot.set_aspect(aspect='equal')
     
     Type = Data['Type']            
@@ -440,7 +444,10 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
     HKL = []
     HKLF = []
     time0 = time.time()
-    for refl in hklRef:
+    sumFo = 0.
+    sumDF = 0.
+#    GSASIIpath.IPyBreak()
+    for refl in HKLref:
         H = refl[:3]
         if 'HKLF' in Name:
             Fosq,sig,Fcsq = refl[5+Super:8+Super]
@@ -456,12 +463,16 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
             B = 0
             if Type == 'Fosq':
                 A = scale*Fosq/FosqMax
+                sumFo += A
                 B = scale*Fcsq/FosqMax
                 C = abs(A-B)
+                sumDF += C
             elif Type == 'Fo':
                 A = scale*math.sqrt(max(0,Fosq))/FoMax
+                sumFo += A
                 B = scale*math.sqrt(max(0,Fcsq))/FoMax
                 C = abs(A-B)
+                sumDF += C
             elif Type == 'Unit Fc':
                 A = scale/2
                 B = scale/2
@@ -471,33 +482,38 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
                     C = abs(A-B)
             elif Type == '|DFsq|/sig':
                 if sig > 0.:
-                    A = (Fosq-Fcsq)/(3*sig)
+                    A = scale*(Fosq-Fcsq)/(3*sig)
                 B = 0
             elif Type == '|DFsq|>sig':
                 if sig > 0.:
-                    A = (Fosq-Fcsq)/(3*sig)
+                    A = scale*(Fosq-Fcsq)/(3*sig)
                 if abs(A) < 1.0: A = 0
                 B = 0                    
             elif Type == '|DFsq|>3sig':
                 if sig > 0.:
-                    A = (Fosq-Fcsq)/(3*sig)
+                    A = scale*(Fosq-Fcsq)/(3*sig)
                 if abs(A) < 3.0: A = 0
                 B = 0
             if Super:
-                h = H+SuperVec*refl[3]                
+                h = H+SuperVec*refl[3]
+                if refl[3]:
+                    hid = '(%d,%d,%d,%d)'%(refl[0],refl[1],refl[2],refl[3])
+                else:
+                    hid = '(%d,%d,%d)'%(refl[0],refl[1],refl[2])                
             else:
                 h = H
+                hid = '(%d,%d,%d)'%(refl[0],refl[1],refl[2])                
             xy = (h[pzone[izone][0]],h[pzone[izone][1]])
             if Type in ['|DFsq|/sig','|DFsq|>sig','|DFsq|>3sig']:
                 if A > 0.0:
-                    Plot.add_artist(Circle(xy,radius=A,ec='g',fc='w'))
+                    Plot.add_artist(Circle(xy,radius=A,ec='g',fc='w',picker=1.,gid=hid))
                 else:
-                    Plot.add_artist(Circle(xy,radius=-A,ec='r',fc='w'))
+                    Plot.add_artist(Circle(xy,radius=-A,ec='r',fc='w',picker=1.,gid=hid))
             else:
                 if A > 0.0 and A > B:
                     Plot.add_artist(Circle(xy,radius=A,ec='g',fc='w'))
                 if B:
-                    Plot.add_artist(Circle(xy,radius=B,ec='b',fc='w'))
+                    Plot.add_artist(Circle(xy,radius=B,ec='b',fc='w',picker=1.,gid=hid))
                     if A < B:
                         Plot.add_artist(Circle(xy,radius=A,ec='g',fc='w'))
                     radius = C
@@ -511,6 +527,11 @@ def PlotSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=''):
     HKLF = np.array(HKLF)
     Plot.set_xlabel(xlabel[izone]+str(Data['Layer']),fontsize=12)
     Plot.set_ylabel(ylabel[izone],fontsize=12)
+    if sumFo and sumDF:
+        G2frame.G2plotNB.status.SetStatusText(xlabel[izone].split(',')[1]+str(Data['Layer'])+   \
+            ' layer R = %6.2f%s'%(100.*sumDF/sumFo,'%'),1)
+    else:
+        G2frame.G2plotNB.status.SetStatusText('Use K-box to set plot controls',1)
     if not newPlot:
         Page.toolbar.push_current()
         Plot.set_xlim(xylim[0])
@@ -531,7 +552,7 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
     '''3D Structure factor plotting package - displays reflections as rings proportional
         to F, F**2, etc. as requested as 3D array
     '''
-
+    super2 = unichr(0xb2)
     global ifBox
     ifBox = False
     def OnKeyBox(event):
@@ -571,6 +592,7 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
     def OnKey(event):           #on key UP!!
         global ifBox
         Choice = {'F':'Fo','S':'Fosq','U':'Unit','D':'dFsq','W':'dFsq/sig'}
+        viewChoice = {'L':np.array([[0,0,1],[1,0,0],[0,1,0]]),'K':np.array([[0,1,0],[0,0,1],[1,0,0]]),'H':np.array([[1,0,0],[0,0,1],[0,1,0]])}
         try:
             keyCode = event.GetKeyCode()
             if keyCode > 255:
@@ -578,25 +600,52 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
             key = chr(keyCode)
         except AttributeError:       #if from OnKeyBox above
             key = str(event.key).upper()
-        if key in ['C']:
-            drawingData['viewPoint'][0] = drawingData['default']
-            drawingData['viewDir'] = [0,0,1]
+        if key in ['C','H','K','L']:
+            if key == 'C':
+                Data['Zone'] = False 
+                key = 'L'
+            Data['viewKey'] = key
+            drawingData['viewPoint'][0] = np.array(drawingData['default'])
+            drawingData['viewDir'] = viewChoice[key][0]
+            drawingData['viewUp'] = viewChoice[key][1]
             drawingData['oldxy'] = []
-            V0 = np.array([0,0,1])
-            V = np.inner(Amat,V0)
-            V /= np.sqrt(np.sum(V**2))
-            A = np.arccos(np.sum(V*V0))
-            Q = G2mth.AV2Q(A,[0,1,0])
+            if Data['Zone']:
+                if key == 'L':
+                    Q = [-1,0,0,0]
+                else:
+                    V0 = viewChoice[key][0]
+                    V1 = viewChoice[key][1]
+                    V0 = np.inner(Amat,V0)
+                    V1 = np.inner(Amat,V1)
+                    V0 /= nl.norm(V0)
+                    V1 /= nl.norm(V1)
+                    A = np.arccos(np.sum(V1*V0))
+                    Q = G2mth.AV2Q(-A,viewChoice[key][2])
+                G2frame.G2plotNB.status.SetStatusText('zone = %s'%(str(list(viewChoice[key][0]))),1)
+            else:
+                V0 = viewChoice[key][0]
+                V = np.inner(Bmat,V0)
+                V /= np.sqrt(np.sum(V**2))
+                V *= np.array([0,0,1])
+                A = np.arccos(np.sum(V*V0))
+                Q = G2mth.AV2Q(-A,viewChoice[key][2])
             drawingData['Quaternion'] = Q
-            Q = drawingData['Quaternion']
+        elif key in 'Z':
+            Data['Zone'] = not Data['Zone']
         elif key in 'B':
             ifBox = not ifBox
         elif key in ['+','=']:
             Data['Scale'] *= 1.25
         elif key == '-':
             Data['Scale'] /= 1.25
+        elif key == 'P':
+            vec = viewChoice[Data['viewKey']][0]
+            drawingData['viewPoint'][0] -= vec
+        elif key == 'N':
+            vec = viewChoice[Data['viewKey']][0]
+            drawingData['viewPoint'][0] += vec
         elif key == '0':
-            drawingData['viewPoint'][0] = [0,0,0]
+            drawingData['viewPoint'][0] = np.array([0,0,0])
             Data['Scale'] = 1.0
         elif key == 'I':
             Data['Iscale'] = not Data['Iscale']
@@ -605,11 +654,12 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
         Draw('key')
             
     Name = G2frame.PatternTree.GetItemText(G2frame.PatternId)
-    if Title: #NB: save image as e.g. jpeg will fail if False; MyDir is unknown
+    if Title and Title in G2frame.GetPhaseData(): #NB: save image as e.g. jpeg will fail if False; MyDir is unknown
         generalData = G2frame.GetPhaseData()[Title]['General']
         cell = generalData['Cell'][1:7]
         Mydir = generalData['Mydir']
     else:
+        Title = 'Unknown'
         cell = [10,10,10,90,90,90]
         Mydir = G2frame.dirname
     drawingData = Data['Drawing']
@@ -637,7 +687,12 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
         [uBox[2],uBox[3]],[uBox[1],uBox[5]],[uBox[2],uBox[6]],[uBox[3],uBox[7]], 
         [uBox[4],uBox[5]],[uBox[5],uBox[6]],[uBox[6],uBox[7]],[uBox[7],uBox[4]]])
     uColors = [Rd,Gr,Bl, Wt,Wt,Wt, Wt,Wt,Wt, Wt,Wt,Wt]
+    
     def FillHKLRC():
+        sumFo2 = 0.
+        sumDF2 = 0.
+        sumFo = 0.
+        sumDF = 0.
         R = np.zeros(len(hklRef))
         C = []
         HKL = []
@@ -650,6 +705,11 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
                     Fosq,sig,Fcsq = [0,1,0]
             else:
                 Fosq,sig,Fcsq = refl[8+Super],1.0,refl[9+Super]
+            sumFo2 += Fosq
+            sumDF2 += abs(Fosq-Fcsq)
+            if Fosq > 0.:
+                sumFo += np.sqrt(Fosq)
+                sumDF += abs(np.sqrt(Fosq)-np.sqrt(Fcsq))
             if Super:
                 HKL.append(H+SuperVec*refl[3])
             else:
@@ -694,8 +754,13 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
             R = np.where(R<=1.,R,1.)
             C = np.array(C)
             C = (C.T*R).T
-            R = np.ones_like(R)*0.05     
-        return HKL,zip(list(R),C)
+            R = np.ones_like(R)*0.05
+        RF = 100.
+        RF2 = 100.
+        if sumFo and sumDF:
+            RF = 100.*sumDF/sumFo
+            RF2 = 100.*sumDF2/sumFo2  
+        return HKL,zip(list(R),C),RF,RF2
 
     def GetTruePosition(xy):
         View = glGetIntegerv(GL_VIEWPORT)
@@ -725,7 +790,7 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
         Tx += V[0]*0.1
         Ty += V[1]*0.1
         Tz += V[2]*0.1
-        drawingData['viewPoint'][0] =  Tx,Ty,Tz
+        drawingData['viewPoint'][0] =  np.array([Tx,Ty,Tz])
         
     def SetRotation(newxy):
         'Perform a rotation in x-y space due to a left-mouse drag'
@@ -798,8 +863,8 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
             hkl = GetTruePosition(newxy)
             if hkl:
                 h,k,l = hkl
-                Page.canvas.SetToolTipString('%d %d %d'%(h,k,l))
-                G2frame.G2plotNB.status.SetStatusText('hkl = %d %d %d'%(h,k,l),1)
+                Page.canvas.SetToolTipString('%d,%d,%d'%(h,k,l))
+                G2frame.G2plotNB.status.SetStatusText('hkl = %d,%d,%d'%(h,k,l),1)
         
     def OnMouseWheel(event):
         if event.ShiftDown():
@@ -848,7 +913,8 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
         glBegin(GL_LINES)
         for line,color in zip(uEdges,uColors)[:3]:
             glColor3ubv(color)
-            glVertex3fv(-line[1])
+            glVertex3fv([0,0,0])
+#            glVertex3fv(-line[1])
             glVertex3fv(line[1])
         glEnd()
         glPopMatrix()
@@ -862,7 +928,7 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
         for xyz,rc in zip(XYZ,RC):
             x,y,z = xyz
             r,c = rc
-            glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,c)
+            glColor3ubv(c)
             glPointSize(r*50)
             glBegin(GL_POINTS)
             glVertex3fv(xyz)
@@ -876,20 +942,23 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
 #        if caller:
 #            print caller
 # end of useful debug
-        G2frame.G2plotNB.status.SetStatusText('Plot type = %s for %s'%(Data['Type'],Name),1)
         VS = np.array(Page.canvas.GetSize())
         aspect = float(VS[0])/float(VS[1])
         cPos = drawingData['cameraPos']
         Zclip = drawingData['Zclip']*cPos/20.
+        if Data['Zone']:
+            Zclip = 0.1
         Q = drawingData['Quaternion']
-        Tx,Ty,Tz = drawingData['viewPoint'][0]
+        Tx,Ty,Tz = drawingData['viewPoint'][0][:3]
         G,g = G2lat.cell2Gmat(cell)
         GS = G
         GS[0][1] = GS[1][0] = math.sqrt(GS[0][0]*GS[1][1])
         GS[0][2] = GS[2][0] = math.sqrt(GS[0][0]*GS[2][2])
         GS[1][2] = GS[2][1] = math.sqrt(GS[1][1]*GS[2][2])
         
-        HKL,RC = FillHKLRC()
+        HKL,RC,RF,RF2 = FillHKLRC()
+        G2frame.G2plotNB.status.SetStatusText   \
+            ('Plot type = %s for %s; RF = %6.2f%%, RF%s = %6.2f%%'%(Data['Type'],Name,RF,super2,RF2),1)
         
         SetBackground()
         glInitNames()
@@ -934,8 +1003,9 @@ def Plot3DSngl(G2frame,newPlot=False,Data=None,hklRef=None,Title=False):
     Font = Page.GetFont()
     Page.SetFocus()
     Page.Choice = None
-    choice = [' save as/key:','jpeg','tiff','bmp','c: recenter to default','b: toggle box ','+: increase scale',
-    '-: decrease scale','f: Fobs','s: Fobs**2','u: unit','d: Fo-Fc','w: DF/sig','i: toggle intensity scaling']
+    choice = [' save as/key:','jpeg','tiff','bmp','h: view down h','k: view down k','l: view down l',
+    'z: zero zone toggle','c: reset to default','b: toggle box ','+: increase scale','-: decrease scale',
+    'f: Fobs','s: Fobs**2','u: unit','d: Fo-Fc','w: DF/sig','i: toggle intensity scaling']
     cb = wx.ComboBox(G2frame.G2plotNB.status,style=wx.CB_DROPDOWN|wx.CB_READONLY,choices=choice)
     cb.Bind(wx.EVT_COMBOBOX, OnKeyBox)
     cb.SetValue(' save as/key:')
@@ -967,11 +1037,16 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
     2-theta, q or TOF. Can display multiple patterns as "waterfall plots" or contour plots. Log I 
     plotting available.
     '''
-    global HKL
     global exclLines
     global DifLine
     global Ymax
+    global Pattern
     plottype = plotType
+    if not G2frame.PatternId:
+        return
+    if 'PKS' in plottype:
+        PlotPowderLines(G2frame)
+        return
 #patch
     data = G2frame.PatternTree.GetItemPyData(G2frame.PatternId)
     if 'Offset' not in data[0] and plotType in ['PWDR','SASD']:     #plot offset data
@@ -1145,10 +1220,10 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                         indx = -1
                         if pickIdText in ['Index Peak List','Unit Cells List',]:
                             indx = -2
-                        if len(HKL):
+                        if len(G2frame.HKL):
                             view = Page.toolbar._views.forward()[0][:2]
                             wid = view[1]-view[0]
-                            found = HKL[np.where(np.fabs(HKL.T[indx]-xpos) < 0.002*wid)]
+                            found = G2frame.HKL[np.where(np.fabs(G2frame.HKL.T[indx]-xpos) < 0.002*wid)]
                         if len(found):
                             if len(found[0]) > 6:   #SS reflections
                                 h,k,l,m = found[0][:4]
@@ -1166,6 +1241,27 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
         olderr = np.seterr(invalid='ignore')
                                                    
     def OnPick(event):
+        '''Respond to an item being picked. This usually means that the item
+        will be dragged with the mouse. 
+        '''
+        def OnDragMarker(event):
+            '''Respond to dragging of a plot Marker
+            '''
+            Page.canvas.restore_region(savedplot)
+            G2frame.itemPicked.set_data([event.xdata], [event.ydata])
+            Page.figure.gca().draw_artist(G2frame.itemPicked)
+            Page.canvas.blit(Page.figure.gca().bbox)
+            
+        def OnDragLine(event):
+            '''Respond to dragging of a plot line
+            '''
+            Page.canvas.restore_region(savedplot)
+            coords = G2frame.itemPicked.get_data()
+            coords[0][0] = coords[0][1] = event.xdata
+            coords = G2frame.itemPicked.set_data(coords)
+            Page.figure.gca().draw_artist(G2frame.itemPicked)
+            Page.canvas.blit(Page.figure.gca().bbox)
+
         if G2frame.itemPicked is not None: return
         PatternId = G2frame.PatternId
         try:
@@ -1179,13 +1275,16 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
         ypos = pick.get_ydata()
         ind = event.ind
         xy = list(zip(np.take(xpos,ind),np.take(ypos,ind))[0])
+        # convert from plot units
+        if G2frame.plotStyle['qPlot']:                              #qplot - convert back to 2-theta
+            xy[0] = G2lat.Dsp2pos(Parms,2*np.pi/xy[0])
+        elif G2frame.plotStyle['dPlot']:                            #dplot - convert back to 2-theta
+            xy[0] = G2lat.Dsp2pos(Parms,xy[0])
+        if G2frame.plotStyle['sqrtPlot']:
+            xy[1] = xy[1]**2
         if G2frame.PatternTree.GetItemText(PickId) == 'Peak List':
             if ind.all() != [0] and ObsLine[0].get_label() in str(pick):                                    #picked a data point
                 data = G2frame.PatternTree.GetItemPyData(G2frame.PickId)
-                if G2frame.plotStyle['qPlot']:                              #qplot - convert back to 2-theta
-                    xy[0] = G2lat.Dsp2pos(Parms,2*np.pi/xy[0])
-                elif G2frame.plotStyle['dPlot']:                            #dplot - convert back to 2-theta
-                    xy[0] = G2lat.Dsp2pos(Parms,xy[0])
                 XY = G2mth.setPeakparms(Parms,Parms2,xy[0],xy[1])
                 data['peaks'].append(XY)
                 data['sigDict'] = {}    #now invalid
@@ -1216,7 +1315,16 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                 G2pdG.UpdateLimitsGrid(G2frame,data,plottype)
                 wx.CallAfter(PlotPatterns,G2frame,plotType=plottype)
             else:                                                   #picked a limit line
+                # prepare to animate move of line
                 G2frame.itemPicked = pick
+                pick.set_linestyle(':') # set line as dotted
+                Page = G2frame.G2plotNB.nb.GetPage(plotNum)
+                Plot = Page.figure.gca()
+                Page.canvas.draw() # refresh without dotted line & save bitmap
+                savedplot = Page.canvas.copy_from_bbox(Page.figure.gca().bbox)
+                G2frame.cid = Page.canvas.mpl_connect('motion_notify_event', OnDragLine)
+                pick.set_linestyle('--') # back to dashed
+                
         elif G2frame.PatternTree.GetItemText(PickId) == 'Models':
             if ind.all() != [0]:                                    #picked a data point
                 LimitId = G2gd.GetPatternTreeItemId(G2frame,PatternId, 'Limits')
@@ -1229,21 +1337,88 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                 wx.CallAfter(PlotPatterns,G2frame,plotType=plottype)
             else:                                                   #picked a limit line
                 G2frame.itemPicked = pick
-        elif G2frame.PatternTree.GetItemText(PickId) == 'Reflection Lists' or \
-            'PWDR' in G2frame.PatternTree.GetItemText(PickId):
+        elif (G2frame.PatternTree.GetItemText(PickId) == 'Reflection Lists' or
+                'PWDR' in G2frame.PatternTree.GetItemText(PickId)
+                ):
             G2frame.itemPicked = pick
             pick = str(pick)
+        elif G2frame.PatternTree.GetItemText(PickId) == 'Background':
+            # selected a fixed background point. Can move it or delete it.
+            for mode,id in G2frame.dataFrame.wxID_BackPts.iteritems(): # what menu is selected?
+                if G2frame.dataFrame.BackMenu.FindItemById(id).IsChecked():
+                    break
+            # mode will be 'Add' or 'Move' or 'Del'
+            if pick.get_marker() == 'D':
+                # find the closest point
+                backDict = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,G2frame.PatternId, 'Background'))[1]
+                d2 = [(x-xy[0])**2+(y-xy[1])**2 for x,y in backDict['FixedPoints']]
+                G2frame.fixPtMarker = d2.index(min(d2))
+                if mode == 'Move':
+                    # animate move of FixedBkg marker
+                    G2frame.itemPicked = pick
+                    pick.set_marker('|') # change the point appearance
+                    Page = G2frame.G2plotNB.nb.GetPage(plotNum)
+                    Plot = Page.figure.gca()
+                    Page.canvas.draw() # refresh with changed point & save bitmap
+                    savedplot = Page.canvas.copy_from_bbox(Page.figure.gca().bbox)
+                    G2frame.cid = Page.canvas.mpl_connect('motion_notify_event', OnDragMarker)
+                    pick.set_marker('D') # put it back
+                elif mode == 'Del':
+                    del backDict['FixedPoints'][G2frame.fixPtMarker]
+                    wx.CallAfter(PlotPatterns,G2frame,plotType=plottype)
+                return
+    def OnRelease(event): # mouse release from item pick or background pt add/move/del
+        plotNum = G2frame.G2plotNB.plotList.index('Powder Patterns')
+        Page = G2frame.G2plotNB.nb.GetPage(plotNum)
+        if G2frame.cid is not None:         # if there is a drag connection, delete it
+            Page.canvas.mpl_disconnect(G2frame.cid)
+            G2frame.cid = None
+        if not G2frame.PickId:
+            return
+        PickId = G2frame.PickId                             # points to item in tree
+#        GSASIIpath.IPyBreak()
+        if G2frame.PatternTree.GetItemText(PickId) == 'Background' and event.xdata:
+            if Page.toolbar._active:    # prevent ops. if a toolbar zoom button pressed
+                return 
+            # Background page, deal with fixed background points
+            if G2frame.SubBack or G2frame.Weight or G2frame.Contour or not G2frame.SinglePlot:
+                return
+            backDict = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,G2frame.PatternId, 'Background'))[1]
+            if 'FixedPoints' not in backDict: backDict['FixedPoints'] = []
+            try:
+                Parms,Parms2 = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,G2frame.PatternId, 'Instrument Parameters'))
+            except TypeError:
+                return
+            # unit conversions
+            xy = [event.xdata,event.ydata]
+            if G2frame.plotStyle['qPlot']:                              #qplot - convert back to 2-theta
+                xy[0] = G2lat.Dsp2pos(Parms,2*np.pi/xy[0])
+            elif G2frame.plotStyle['dPlot']:                            #dplot - convert back to 2-theta
+                xy[0] = G2lat.Dsp2pos(Parms,xy[0])
+            if G2frame.plotStyle['sqrtPlot']:
+                xy[1] = xy[1]**2
+            for mode,id in G2frame.dataFrame.wxID_BackPts.iteritems(): # what menu item is selected?
+                if G2frame.dataFrame.BackMenu.FindItemById(id).IsChecked():
+                    break
+            if mode == 'Add':
+                backDict['FixedPoints'].append(xy)
+                Plot = Page.figure.gca()
+                Plot.plot(event.xdata,event.ydata,'rD',clip_on=False,picker=3.)
+                Page.canvas.draw()
+                return
+            elif G2frame.itemPicked is not None: # end of drag in move
+                backDict['FixedPoints'][G2frame.fixPtMarker] = xy
+                G2frame.itemPicked = None
+                wx.CallAfter(PlotPatterns,G2frame,plotType=plottype)
+                return
         
-    def OnRelease(event):
         if G2frame.itemPicked is None: return
-        PickId = G2frame.PickId
         if str(DifLine[0]) == str(G2frame.itemPicked):
             data = G2frame.PatternTree.GetItemPyData(PickId)
             ypos = event.ydata
             Pattern[0]['delOffset'] = -ypos/Ymax
             G2frame.itemPicked = None
-            G2frame.PatternTree.SetItemPyData(PickId,data)
-            PlotPatterns(G2frame,plotType=plottype)
+            wx.CallAfter(PlotPatterns,G2frame,plotType=plottype)
             return
         Parms,Parms2 = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,G2frame.PatternId, 'Instrument Parameters'))
         xpos = event.xdata
@@ -1270,7 +1445,6 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                         limits[id].reverse()
                 limits[1][0] = min(max(limits[0][0],limits[1][0]),limits[1][1])
                 limits[1][1] = max(min(limits[0][1],limits[1][1]),limits[1][0])
-                G2frame.PatternTree.SetItemPyData(LimitId,limits)
                 if G2frame.PatternTree.GetItemText(G2frame.PickId) == 'Limits':
                     G2pdG.UpdateLimitsGrid(G2frame,limits,plottype)
             elif lineNo > 1:
@@ -1286,7 +1460,6 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                     else:
                         peaks['peaks'][lineNo-2][0] = xpos
                     peaks['sigDict'] = {}        #no longer valid
-                G2frame.PatternTree.SetItemPyData(PeakId,peaks)
                 G2pdG.UpdatePeakGrid(G2frame,peaks)
         elif G2frame.PatternTree.GetItemText(PickId) in ['Models',] and xpos:
             lines = []
@@ -1302,28 +1475,29 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                 data[1][lineNo] = xpos
                 data[1][0] = min(max(data[0][0],data[1][0]),data[1][1])
                 data[1][1] = max(min(data[0][1],data[1][1]),data[1][0])
-                G2frame.PatternTree.SetItemPyData(LimitId,data)        
         elif (G2frame.PatternTree.GetItemText(PickId) == 'Reflection Lists' or \
             'PWDR' in G2frame.PatternTree.GetItemText(PickId)) and xpos:
-            Phases = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,PatternId,'Reflection Lists'))
-            pick = str(G2frame.itemPicked).split('(')[1].strip(')')
-            if 'line' not in pick:       #avoid data points, etc.
-                data = G2frame.PatternTree.GetItemPyData(PickId)
-                num = Phases.keys().index(pick)
-                if num:
-                    data[0]['refDelt'] = -(event.ydata-Pattern[0]['refOffset'])/(num*Ymax)
-                else:       #1st row of refl ticks
-                    data[0]['refOffset'] = event.ydata
-                G2frame.PatternTree.SetItemPyData(PickId,data)
+            Id = G2gd.GetPatternTreeItemId(G2frame,PatternId,'Reflection Lists')
+#            GSASIIpath.IPyBreak()
+            if Id:     
+                Phases = G2frame.PatternTree.GetItemPyData(Id)
+                pick = str(G2frame.itemPicked).split('(',1)[1][:-1]
+                if 'line' not in pick:       #avoid data points, etc.
+                    data = G2frame.PatternTree.GetItemPyData(PatternId)
+                    num = Phases.keys().index(pick)
+                    if num:
+                        data[0]['refDelt'] = -(event.ydata-Pattern[0]['refOffset'])/(num*Ymax)
+                    else:       #1st row of refl ticks
+                        data[0]['refOffset'] = event.ydata
         PlotPatterns(G2frame,plotType=plottype)
         G2frame.itemPicked = None    
 
+    # beginning PlotPatterns execution
     try:
         plotNum = G2frame.G2plotNB.plotList.index('Powder Patterns')
         Page = G2frame.G2plotNB.nb.GetPage(plotNum)
-        if not newPlot:
-            Plot = Page.figure.gca()          #get previous powder plot & get limits
-            xylim = Plot.get_xlim(),Plot.get_ylim()
+        Plot = Page.figure.gca()          #get previous powder plot & get limits
+        G2frame.xylim = Plot.get_xlim(),Plot.get_ylim()
         Page.figure.clf()
         Plot = Page.figure.gca()          #get a fresh plot after clf()
     except ValueError:
@@ -1386,7 +1560,7 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                     Page.Choice = (' key press','b: toggle subtract background file','n: loglog on','e: toggle error bars',
                         'd: offset down','l: offset left','r: offset right','u: offset up','o: reset offset',
                         'q: toggle S(q) plot','m: toggle multidata plot','w: toggle (Io-Ic)/sig plot','+: no selection')
-
+    G2frame.cid = None
     Page.keyPress = OnPlotKeyPress    
     PickId = G2frame.PickId
     PatternId = G2frame.PatternId
@@ -1423,23 +1597,6 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
                     item, 'Sample Parameters')))
             item, cookie = G2frame.PatternTree.GetNextChild(G2frame.root, cookie)                
     lenX = 0
-    if PickId:
-        if G2frame.PatternTree.GetItemText(PickId) in ['Reflection Lists']:
-            Phases = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,PatternId,'Reflection Lists'))
-            HKL = []
-            if Phases:  
-                try:
-                    for peak in Phases[G2frame.RefList]['RefList']:
-                        if len(peak) > 15:
-                            HKL.append(peak[:7])    #SS reflection list - need peak[:7]
-                        else:
-                            HKL.append(peak[:6])
-                except TypeError:   #old style patch
-                    for peak in Phases[G2frame.RefList]:
-                        HKL.append(peak[:6])                    
-                HKL = np.array(HKL)
-        else:
-            HKL = np.array(G2frame.HKL)
     Ymax = None
     for Pattern in PlotList:
         xye = Pattern[1]
@@ -1714,10 +1871,9 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
             refColors=['b','r','c','g','m','k']
             Phases = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,PatternId,'Reflection Lists'))
             for pId,phase in enumerate(Phases):
-                try:    #patch for old style reflection lists
-                    peaks = Phases[phase]['RefList']
-                except TypeError:
-                    peaks = Phases[phase]
+                if 'list' in str(type(Phases[phase])):
+                    continue
+                peaks = Phases[phase].get('RefList',[])
                 if not len(peaks):
                     continue
                 if Phases[phase].get('Super',False):
@@ -1743,14 +1899,44 @@ def PlotPatterns(G2frame,newPlot=False,plotType='PWDR'):
         Page.figure.colorbar(Img)
     else:
         G2frame.Lines = Lines
+    if PickId and G2frame.PatternTree.GetItemText(PickId) == 'Background':
+        # plot fixed background points
+        backDict = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,G2frame.PatternId, 'Background'))[1]
+        try:
+            Parms,Parms2 = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,G2frame.PatternId, 'Instrument Parameters'))
+        except TypeError:
+            Parms = None
+        for x,y in backDict.get('FixedPoints',[]):
+            # "normal" intensity modes only!
+            if G2frame.SubBack or G2frame.Weight or G2frame.Contour or not G2frame.SinglePlot:
+                break
+            if y < 0 and (G2frame.plotStyle['sqrtPlot'] or G2frame.logPlot):
+                y = Page.figure.gca().get_ylim()[0] # put out of range point at bottom of plot
+            elif G2frame.plotStyle['sqrtPlot']:
+                y = math.sqrt(y)
+            if G2frame.plotStyle['qPlot']:     #Q - convert from 2-theta
+                if Parms:
+                    x = 2*np.pi/G2lat.Pos2dsp(Parms,x)
+                else:
+                    break
+            elif G2frame.plotStyle['dPlot']:   #d - convert from 2-theta
+                if Parms:
+                    x = G2lat.Dsp2pos(Parms,x)
+                else:
+                    break
+            Plot.plot(x,y,'rD',clip_on=False,picker=3.)
     if not newPlot:
+        # this restores previous plot limits (but I'm not sure why there are two .push_current calls)
         Page.toolbar.push_current()
-        Plot.set_xlim(xylim[0])
-        Plot.set_ylim(xylim[1])
+        if G2frame.Contour: # for contour plots expand y-axis to include all histograms
+            G2frame.xylim = (G2frame.xylim[0], (0.,len(PlotList)-1.))
+        Plot.set_xlim(G2frame.xylim[0])
+        Plot.set_ylim(G2frame.xylim[1])
 #        xylim = []
         Page.toolbar.push_current()
         Page.toolbar.draw()
     else:
+        G2frame.xylim = Plot.get_xlim(),Plot.get_ylim()
         Page.canvas.draw()
     olderr = np.seterr(invalid='ignore') #ugh - this removes a matplotlib error for mouse clicks in log plots
     # and sqrt(-ve) in np.where usage               
@@ -1817,7 +2003,7 @@ def PlotDeltSig(G2frame,kind):
     Plot.legend(loc='upper left')
     np.seterr(invalid='warn')
     Page.canvas.draw()
-
+       
 ################################################################################
 ##### PlotISFG
 ################################################################################
@@ -2300,7 +2486,6 @@ def PlotSASDSizeDist(G2frame):
 def PlotPowderLines(G2frame):
     ''' plotting of powder lines (i.e. no powder pattern) as sticks
     '''
-    global HKL
 
     def OnMotion(event):
         xpos = event.xdata
@@ -2309,10 +2494,10 @@ def PlotPowderLines(G2frame):
             G2frame.G2plotNB.status.SetFields(['','2-theta =%9.3f '%(xpos,)])
             if G2frame.PickId and G2frame.PatternTree.GetItemText(G2frame.PickId) in ['Index Peak List','Unit Cells List']:
                 found = []
-                if len(HKL):
+                if len(G2frame.HKL):
                     view = Page.toolbar._views.forward()[0][:2]
                     wid = view[1]-view[0]
-                    found = HKL[np.where(np.fabs(HKL.T[-1]-xpos) < 0.002*wid)]
+                    found = G2frame.HKL[np.where(np.fabs(G2frame.HKL.T[-1]-xpos) < 0.002*wid)]
                 if len(found):
                     h,k,l = found[0][:3] 
                     Page.canvas.SetToolTipString('%d,%d,%d'%(int(h),int(k),int(l)))
@@ -2339,9 +2524,8 @@ def PlotPowderLines(G2frame):
     peaks = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,PatternId, 'Index Peak List'))[0]
     for peak in peaks:
         Plot.axvline(peak[0],color='b')
-    HKL = np.array(G2frame.HKL)
     for hkl in G2frame.HKL:
-        Plot.axvline(hkl[-1],color='r',dashes=(5,5))
+        Plot.axvline(hkl[-2],color='r',dashes=(5,5))
     xmin = peaks[0][0]
     xmax = peaks[-1][0]
     delt = xmax-xmin
@@ -2360,7 +2544,7 @@ def PlotPeakWidths(G2frame):
     '''
 #    sig = lambda Th,U,V,W: 1.17741*math.sqrt(U*tand(Th)**2+V*tand(Th)+W)*math.pi/18000.
 #    gam = lambda Th,X,Y: (X/cosd(Th)+Y*tand(Th))*math.pi/18000.
-    gamFW = lambda s,g: np.exp(np.log(s**5+2.69269*s**4*g+2.42843*s**3*g**2+4.47163*s**2*g**3+0.07842*s*g**4+g**5)/5.)
+#    gamFW = lambda s,g: np.exp(np.log(s**5+2.69269*s**4*g+2.42843*s**3*g**2+4.47163*s**2*g**3+0.07842*s*g**4+g**5)/5.)
 #    gamFW2 = lambda s,g: math.sqrt(s**2+(0.4654996*g)**2)+.5345004*g  #Ubaldo Bafile - private communication
     PatternId = G2frame.PatternId
     limitID = G2gd.GetPatternTreeItemId(G2frame,PatternId, 'Limits')
@@ -2370,10 +2554,12 @@ def PlotPeakWidths(G2frame):
         return
     Parms,Parms2 = G2frame.PatternTree.GetItemPyData( \
         G2gd.GetPatternTreeItemId(G2frame,PatternId, 'Instrument Parameters'))
-    if 'C' in Parms['Type'][0]:
-        lam = G2mth.getWave(Parms)
-    else:
+    if 'PKS' in Parms['Type'][0]:
+        return
+    elif 'T' in Parms['Type'][0]:
         difC = Parms['difC'][0]
+    else:
+        lam = G2mth.getWave(Parms)
     try:  # PATCH: deal with older peak lists, before changed to dict to implement TOF
         peaks = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame,PatternId, 'Peak List'))['peaks']
     except TypeError:
@@ -2857,18 +3043,22 @@ def PlotTexture(G2frame,data,Start=False):
 ################################################################################
 
 def ModulationPlot(G2frame,data,atom,ax,off=0):
-    global Off,Atom,Ax
+    global Off,Atom,Ax,Slab,Off
     Off = off
     Atom = atom
     Ax = ax
+    
     def OnMotion(event):
         xpos = event.xdata
         if xpos:                                        #avoid out of frame mouse position
             ypos = event.ydata
+            ix = int(round(xpos*10))
+            iy = int(round((Slab.shape[0]-1)*(ypos+0.5-Off*0.005)))
             Page.canvas.SetCursor(wx.CROSS_CURSOR)
             try:
-                G2frame.G2plotNB.status.SetStatusText('t =%9.3f %s =%9.3f'%(xpos,GkDelta+Ax,ypos),1)                   
-            except TypeError:
+                G2frame.G2plotNB.status.SetStatusText('t =%9.3f %s =%9.3f %s=%9.3f'%(xpos,GkDelta+Ax,ypos,Gkrho,Slab[iy,ix]/8.),1)                   
+#                GSASIIpath.IPyBreak()                  
+            except (TypeError,IndexError):
                 G2frame.G2plotNB.status.SetStatusText('Select '+Title+' pattern first',1)
     
     def OnPlotKeyPress(event):
@@ -2912,7 +3102,7 @@ def ModulationPlot(G2frame,data,atom,ax,off=0):
         Page.Choice = ['+: shift up','-: shift down','0: reset shift']
     Page.keyPress = OnPlotKeyPress
     Map = General['4DmapData']
-    MapType = Map['MapType']
+    MapType = mapData['MapType']
     rhoSize = np.array(Map['rho'].shape)
     atxyz = np.array(atom[cx:cx+3])
     waveType = atom[-1]['SS1']['waveType']
@@ -2923,13 +3113,13 @@ def ModulationPlot(G2frame,data,atom,ax,off=0):
         scof = []
         ccof = []
         for i,spos in enumerate(Spos):
-            if waveType in ['Sawtooth','ZigZag'] and not i:
-                Toff = spos[0][0]
-                slopes = np.array(spos[0][1:])
-                if waveType == 'Sawtooth':
-                    wave = G2mth.posSawtooth(tau,Toff,slopes)
+            if waveType in ['ZigZag','Block'] and not i:
+                Tminmax = spos[0][:2]
+                XYZmax = np.array(spos[0][2:])
+                if waveType == 'Block':
+                    wave = G2mth.posBlock(tau,Tminmax,XYZmax).T
                 elif waveType == 'ZigZag':
-                    wave = G2mth.posZigZag(tau,Toff,slopes)
+                    wave = G2mth.posZigZag(tau,Tminmax,XYZmax).T
             else:
                 scof.append(spos[0][:3])
                 ccof.append(spos[0][3:])
@@ -2940,26 +3130,35 @@ def ModulationPlot(G2frame,data,atom,ax,off=0):
         Title = MapType
     Title += ' map for atom '+atom[0]+    \
         ' at %.4f %.4f %.4f'%(atxyz[0],atxyz[1],atxyz[2])
-    ix = -np.array(np.rint(rhoSize[:3]*atxyz),dtype='i')
+    ix = -np.array(np.rint(rhoSize[:3]*atxyz)+1,dtype='i')
     ix += (rhoSize[:3]/2)
     ix = ix%rhoSize[:3]
     rho = np.roll(np.roll(np.roll(Map['rho'],ix[0],axis=0),ix[1],axis=1),ix[2],axis=2)
     ix = rhoSize[:3]/2
     ib = 4
+    hdx = [2,2,2]       #this needs to be something for an offset correction on atom positions
     if Ax == 'x':
+        Doff = (hdx[0]+Off)*.005
         slab = np.sum(np.sum(rho[:,ix[1]-ib:ix[1]+ib,ix[2]-ib:ix[2]+ib,:],axis=2),axis=1)
         Plot.plot(tau,wave[0])
     elif Ax == 'y':
+        Doff = (hdx[1]+Off)*.005
         slab = np.sum(np.sum(rho[ix[0]-ib:ix[0]+ib,:,ix[2]-ib:ix[2]+ib,:],axis=2),axis=0)
         Plot.plot(tau,wave[1])
     elif Ax == 'z':
+        Doff = (hdx[2]+Off)*.005
         slab = np.sum(np.sum(rho[ix[0]-ib:ix[0]+ib,ix[1]-ib:ix[1]+ib,:,:],axis=1),axis=0)
         Plot.plot(tau,wave[2])
     Plot.set_title(Title)
     Plot.set_xlabel('t')
     Plot.set_ylabel(r'$\mathsf{\Delta}$%s'%(Ax))
-    Slab = np.hstack((slab,slab,slab))
-    Plot.contour(Slab[:,:21],20,extent=(0.,2.,-.5+Off*.005,.5+Off*.005))
+    Slab = np.hstack((slab,slab,slab))   
+    acolor = mpl.cm.get_cmap('RdYlGn')
+    if 'delt' in MapType:
+        Plot.contour(Slab[:,:21],20,extent=(0.,2.,-.5+Doff,.5+Doff),cmap=acolor)
+    else:
+        Plot.contour(Slab[:,:21],20,extent=(0.,2.,-.5+Doff,.5+Doff))
+    Plot.set_ylim([-0.25,0.25])
     Page.canvas.draw()
    
 ################################################################################
@@ -3357,6 +3556,7 @@ def PlotExposedImage(G2frame,newPlot=False,event=None):
     '''General access module for 2D image plotting
     '''
     plotNo = G2frame.G2plotNB.nb.GetSelection()
+    if plotNo < 0: return # no plots
     if G2frame.G2plotNB.nb.GetPageText(plotNo) == '2D Powder Image':
         PlotImage(G2frame,newPlot,event,newImage=True)
     elif G2frame.G2plotNB.nb.GetPageText(plotNo) == '2D Integration':
@@ -3366,7 +3566,7 @@ def OnStartMask(G2frame):
     '''Initiate the start of a Frame or Polygon map
 
     :param wx.Frame G2frame: The main GSAS-II tree "window"
-    :param str eventkey: a single letter ('f' or 'p') that
+    :param str eventkey: a single letter ('f' or 'p', etc.) that
       determines what type of mask is created.    
     '''
     Masks = G2frame.PatternTree.GetItemPyData(
@@ -3399,11 +3599,16 @@ def OnStartNewDzero(G2frame):
 def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
     '''Plot of 2D detector images as contoured plot. Also plot calibration ellipses,
     masks, etc.
+
+    :param wx.Frame G2frame: main GSAS-II frame
+    :param bool newPlot: if newPlot is True, the plot is reset (zoomed out, etc.)
+    :param event: matplotlib mouse event (or None)
+    :param bool newImage: If True, the Figure is cleared and redrawn
     '''
     from matplotlib.patches import Ellipse,Arc,Circle,Polygon
     import numpy.ma as ma
     Dsp = lambda tth,wave: wave/(2.*npsind(tth/2.))
-    global Data,Masks,StrSta
+    #global Data,Masks,StrSta  # BHT: I don't see why these need to be globals. Where are they accessed? 
     colors=['b','g','r','c','m','k']
     Data = G2frame.PatternTree.GetItemPyData(
         G2gd.GetPatternTreeItemId(G2frame,G2frame.Image, 'Image Controls'))
@@ -3469,13 +3674,13 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
             if event.key in ['l','p','f','s','a','r']:
                 G2frame.MaskKey = event.key
                 OnStartMask(G2frame)
-                PlotImage(G2frame,newPlot=False)
+                wx.CallAfter(PlotImage,G2frame,newImage=False)
                 
         elif PickName == 'Stress/Strain':
             if event.key in ['a',]:
                 G2frame.StrainKey = event.key
                 StrSta = OnStartNewDzero(G2frame)
-                PlotImage(G2frame,newPlot=False)
+                wx.CallAfter(PlotImage,G2frame,newImage=False)
                 
         elif PickName == 'Image Controls':
             if event.key in ['c',]:
@@ -3490,7 +3695,7 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
                         print 'move center to: ',Xpos,Ypos
                         Data['center'] = [Xpos,Ypos]
                         G2imG.UpdateImageControls(G2frame,Data,Masks)
-                        PlotImage(G2frame,newPlot=False)
+                        wx.CallAfter(PlotImage,G2frame,newPlot=False)
                 finally:
                     dlg.Destroy()
                 return
@@ -3500,7 +3705,7 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
                 Data['invert_x'] = not Data['invert_x']
             elif event.key in ['y',]:
                 Data['invert_y'] = not Data['invert_y']
-            PlotImage(G2frame,newPlot=True)
+            wx.CallAfter(PlotImage,G2frame,newPlot=True)
             
     def OnKeyBox(event):
         if G2frame.G2plotNB.nb.GetSelection() == G2frame.G2plotNB.plotList.index('2D Powder Image'):
@@ -3557,7 +3762,7 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
                     G2frame.ifGetRing = False
                     G2imG.UpdateImageControls(G2frame,Data,Masks)
                     return
-                PlotImage(G2frame,newImage=False)
+                wx.CallAfter(PlotImage,G2frame,newImage=False)
             return
         elif G2frame.MaskKey and PickName == 'Masks':
             Xpos,Ypos = [event.xdata,event.ydata]
@@ -3596,7 +3801,7 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
                     G2frame.G2plotNB.status.SetFields(['','New frame point: %.1f,%.1f'%(Xpos,Ypos)])
                     frame.append([Xpos,Ypos])
             G2imG.UpdateMasks(G2frame,Masks)
-            PlotImage(G2frame,newImage=False)
+            wx.CallAfter(PlotImage,G2frame,newImage=False)
         elif PickName == 'Stress/Strain' and G2frame.StrainKey:
             Xpos,Ypos = [event.xdata,event.ydata]
             if not Xpos or not Ypos or Page.toolbar._active:  #got point out of frame or zoom/pan selected
@@ -3612,7 +3817,7 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
             G2frame.StrainKey = ''
             G2imG.UpdateStressStrain(G2frame,StrSta)
             PlotStrain(G2frame,StrSta)
-            PlotImage(G2frame,newPlot=False)            
+            wx.CallAfter(PlotImage,G2frame,newPlot=False)            
         else:
             Xpos,Ypos = [event.xdata,event.ydata]
             if not Xpos or not Ypos or Page.toolbar._active:  #got point out of frame or zoom/pan selected
@@ -3706,9 +3911,11 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
                     G2imG.UpdateMasks(G2frame,Masks)
 #                else:                  #keep for future debugging
 #                    print str(G2frame.itemPicked),event.xdata,event.ydata,event.button
-            PlotImage(G2frame,newImage=True)
+            wx.CallAfter(PlotImage,G2frame,newImage=True)
             G2frame.itemPicked = None
             
+    # PlotImage execution starts here
+    xylim = []
     try:
         plotNum = G2frame.G2plotNB.plotList.index('2D Powder Image')
         Page = G2frame.G2plotNB.nb.GetPage(plotNum)
@@ -3752,22 +3959,28 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
             Page.keyPress = OnImPlotKeyPress
     except TypeError:
         pass
-    size,imagefile = G2frame.PatternTree.GetItemPyData(G2frame.Image)
+    size,imagefile,imagetag = G2frame.PatternTree.GetImageLoc(G2frame.Image)
     dark = Data.get('dark image',[0,''])
-    if dark[0]:
-        darkfile = G2frame.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(G2frame, 
-            G2frame.root,dark[0]))[1]
-    if imagefile != G2frame.oldImagefile:
+    if imagefile != G2frame.oldImagefile or G2frame.oldImageTag != imagetag or dark[0]: # always reread to apply dark correction
         imagefile = G2IO.CheckImageFile(G2frame,imagefile)
         if not imagefile:
             G2frame.G2plotNB.Delete('2D Powder Image')
             return
-        G2frame.PatternTree.SetItemPyData(G2frame.Image,[size,imagefile])
-        G2frame.ImageZ = G2IO.GetImageData(G2frame,imagefile,imageOnly=True)
+        if imagetag:
+            G2frame.PatternTree.SetItemPyData(G2frame.Image,
+                                              [size,(imagefile,imagetag)])
+        else:
+            G2frame.PatternTree.SetItemPyData(G2frame.Image,[size,imagefile])          
+        G2frame.ImageZ = G2IO.GetImageData(G2frame,imagefile,imageOnly=True,ImageTag=imagetag)
         if dark[0]:
-            darkImg = G2IO.GetImageData(G2frame,darkfile,imageOnly=True)
+            dsize,darkfile,darktag = G2frame.PatternTree.GetImageLoc(
+                G2gd.GetPatternTreeItemId(G2frame,G2frame.root,dark[0]))
+            darkImg = G2IO.GetImageData(G2frame,darkfile,imageOnly=True,ImageTag=darktag)
             G2frame.ImageZ += dark[1]*darkImg
-        G2frame.oldImagefile = imagefile
+        G2frame.oldImagefile = imagefile # save name of the last image file read
+        G2frame.oldImageTag = imagetag   # save tag of the last image file read
+    #else:
+    #    if GSASIIpath.GetConfigValue('debug'): print('Skipping image reread')
 
     imScale = 1
     if len(G2frame.ImageZ) > 1024:
@@ -3790,7 +4003,6 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
     FlatBkg = Data.get('Flat Bkg',0.0)
     wx.BeginBusyCursor()
     try:
-            
         if newImage:                    
             Imin,Imax = Data['range'][1]
             MA = ma.masked_greater(ma.masked_less(G2frame.ImageZ,Zlim[0]+FlatBkg),Zlim[1]+FlatBkg)
@@ -3859,7 +4071,7 @@ def PlotImage(G2frame,newPlot=False,event=None,newImage=True):
                 for ring in Data['rings']:
                     xring,yring = np.array(ring).T[:2]
                     Plot.plot(xring,yring,'.',color=colors[N%6])
-                    N += 1            
+                    N += 1
             for ellipse in Data['ellipses']:      #what about hyperbola?
                 cent,phi,[width,height],col = ellipse
                 if width > 0:       #ellipses
@@ -4129,6 +4341,7 @@ def PlotStructure(G2frame,data,firstCall=False):
     if generalData['Type'] in ['modulated','magnetic']:
         SSGData = generalData['SSGData']
     Mydir = generalData['Mydir']
+    Super = generalData.get('Super',0)
     atomData = data['Atoms']
     mapPeaks = []
     drawingData = data['Drawing']
@@ -4237,17 +4450,19 @@ def PlotStructure(G2frame,data,firstCall=False):
         Page.canvas.SetFocus() # redirect the Focus from the button back to the plot
 
     def OnKey(event):           #on key UP!!
+        keyBox = False
         try:
             keyCode = event.GetKeyCode()
             if keyCode > 255:
                 keyCode = 0
             key = chr(keyCode)
         except AttributeError:       #if from OnKeyBox above
+            keyBox = True
             key = str(event.key).upper()
         indx = drawingData['selectedAtoms']
         cx,ct = drawingData['atomPtrs'][:2]
         if key in ['C']:
-            drawingData['viewPoint'] = [[.5,.5,.5],[0,0]]
+            drawingData['viewPoint'] = [np.array([.5,.5,.5]),[0,0]]
             drawingData['viewDir'] = [0,0,1]
             drawingData['oldxy'] = []
             V0 = np.array([0,0,1])
@@ -4278,7 +4493,7 @@ def PlotStructure(G2frame,data,firstCall=False):
                 pI[0] += 1
                 if pI[0] >= len(drawAtoms):
                     pI[0] = 0
-            drawingData['viewPoint'] = [[Tx,Ty,Tz],pI]
+            drawingData['viewPoint'] = [np.array([Tx,Ty,Tz]),pI]
             SetViewPointText(drawingData['viewPoint'][0])
             G2frame.G2plotNB.status.SetStatusText('View point at atom '+drawAtoms[pI[0]][ct-1]+str(pI),1)
                 
@@ -4300,7 +4515,7 @@ def PlotStructure(G2frame,data,firstCall=False):
                 pI[0] -= 1
                 if pI[0] < 0:
                     pI[0] = len(drawAtoms)-1
-            drawingData['viewPoint'] = [[Tx,Ty,Tz],pI]
+            drawingData['viewPoint'] = [np.array([Tx,Ty,Tz]),pI]
             SetViewPointText(drawingData['viewPoint'][0])            
             G2frame.G2plotNB.status.SetStatusText('View point at atom '+drawAtoms[pI[0]][ct-1]+str(pI),1)
         elif key in ['U','D','L','R'] and mapData['Flip'] == True:
@@ -4310,15 +4525,46 @@ def PlotStructure(G2frame,data,firstCall=False):
                 Set4DMapRoll(dirDict[key])
             SetPeakRoll(dirDict[key])
             SetMapPeaksText(mapPeaks)
+        elif key in ['M',]and generalData['Type'] in ['modulated','magnetic']:  #make a movie file
+            G2frame.tau = 0.
+            for i in range(10):
+                G2frame.tau += 0.1
+                G2frame.G2plotNB.status.SetStatusText('Modulation tau = %.2f'%(G2frame.tau),1)
+                data['Drawing']['Atoms'],Fade = G2mth.ApplyModulation(data,G2frame.tau)     #modifies drawing atom array!          
+                SetDrawAtomsText(data['Drawing']['Atoms'])
+                G2phG.FindBondsDraw(data)           #rebuild bonds & polygons
+                if not np.any(Fade):
+                    Fade += 1
+                Draw('key down',Fade)
         elif key in ['+','-','=','0'] and generalData['Type'] in ['modulated','magnetic']:
+            if keyBox:
+                OnKeyPressed(event)
+            return
+        Draw('key up')
+        
+    def OnKeyPressed(event):    #On key down for repeating operation - used to change tau...
+        try:
+            keyCode = event.GetKeyCode()
+            if keyCode > 255:
+                keyCode = 0
+            key = chr(keyCode)
+        except AttributeError:       #if from OnKeyBox above
+            key = str(event.key).upper()
+        if key in ['+','-','=','0'] and generalData['Type'] in ['modulated','magnetic']:
             if key == '0':
                 G2frame.tau = 0.
             elif key in ['+','=']:
-                G2frame.tau += 0.05
+                G2frame.tau += 0.1
             elif key == '-':
-                G2frame.tau -= 0.05
+                G2frame.tau -= 0.1
             G2frame.tau %= 1.   #force 0-1 range
-        Draw('key')
+            G2frame.G2plotNB.status.SetStatusText('Modulation tau = %.2f'%(G2frame.tau),1)
+            data['Drawing']['Atoms'],Fade = G2mth.ApplyModulation(data,G2frame.tau)     #modifies drawing atom array!          
+            SetDrawAtomsText(data['Drawing']['Atoms'])
+            G2phG.FindBondsDraw(data)           #rebuild bonds & polygons
+            if not np.any(Fade):
+                Fade += 1
+            Draw('key down',Fade)
             
     def GetTruePosition(xy,Add=False):
         View = glGetIntegerv(GL_VIEWPORT)
@@ -4395,7 +4641,8 @@ def PlotStructure(G2frame,data,firstCall=False):
                 elif event.RightIsDown():
                     SetTranslation(newxy)
                     Tx,Ty,Tz = drawingData['viewPoint'][0]
-                    G2frame.G2plotNB.status.SetStatusText('New view point: %.4f, %.4f, %.4f'%(Tx,Ty,Tz),1)
+                    rho = G2mth.getRho([Tx,Ty,Tz],mapData)
+                    G2frame.G2plotNB.status.SetStatusText('New view point: %.4f, %.4f, %.4f; density: %.4f'%(Tx,Ty,Tz,rho),1)
                 elif event.MiddleIsDown():
                     SetRotationZ(newxy)
                     Q = drawingData['Quaternion']
@@ -4454,6 +4701,21 @@ def PlotStructure(G2frame,data,firstCall=False):
         if page:
             if G2frame.dataDisplay.GetPageText(page) == 'Map peaks':
                 G2frame.MapPeaksTable.SetData(mapPeaks)
+                panel = G2frame.dataDisplay.GetPage(page).GetChildren()
+                names = [child.GetName() for child in panel]
+                try:
+                    panel[names.index('GridWindow')].Refresh()
+                except ValueError:  #different wx versions!
+                    panel[names.index('grid window')].Refresh()
+            
+    def SetDrawAtomsText(drawAtoms):
+        page = getSelection()
+        if page:
+            if G2frame.dataDisplay.GetPageText(page) == 'Draw Atoms':
+                table = G2frame.atomTable.GetData()
+                for i,atom in enumerate(drawAtoms):
+                    table[i][2:5] = atom[2:5]
+                G2frame.atomTable.SetData(table)
                 panel = G2frame.dataDisplay.GetPage(page).GetChildren()
                 names = [child.GetName() for child in panel]
                 try:
@@ -4553,7 +4815,7 @@ def PlotStructure(G2frame,data,firstCall=False):
         Tx += V[0]*0.01
         Ty += V[1]*0.01
         Tz += V[2]*0.01
-        drawingData['viewPoint'][0] =  Tx,Ty,Tz
+        drawingData['viewPoint'][0] =  np.array([Tx,Ty,Tz])
         SetViewPointText([Tx,Ty,Tz])
         
     def SetRBTranslation(newxy):
@@ -4825,8 +5087,8 @@ def PlotStructure(G2frame,data,firstCall=False):
         glMultMatrixf(B4mat.T)
         glEnable(GL_COLOR_MATERIAL)
         glShadeModel(GL_SMOOTH)
-        gleSetJoinStyle(TUBE_NORM_EDGE | TUBE_JN_ANGLE | TUBE_JN_CAP)
-        glePolyCylinder(Backbone,BackboneColor,radius)
+#        gle.gleSetJoinStyle(TUBE_NORM_EDGE | TUBE_JN_ANGLE | TUBE_JN_CAP)
+#        gle.glePolyCylinder(Backbone,BackboneColor,radius)
         glPopMatrix()        
         glDisable(GL_COLOR_MATERIAL)
         
@@ -4857,7 +5119,7 @@ def PlotStructure(G2frame,data,firstCall=False):
                 I,J,K = indx[i]
                 alpha = 1.0
                 if cLevel < 1.:
-                    alpha = (abs(rho[I,J,K])/mapData['rhoMax']-cLevel)/(1.-cLevel)
+                    alpha = min(1.0,(abs(rho[I,J,K])/mapData['rhoMax']-cLevel)/(1.-cLevel))
                 if rho[I,J,K] < 0.:
                     XYZ.append(xyz)
                     RC.append([0.1*alpha,Rd])
@@ -4867,35 +5129,41 @@ def PlotStructure(G2frame,data,firstCall=False):
         RenderDots(XYZ,RC)
         glShadeModel(GL_SMOOTH)
                             
-    def Draw(caller=''):
+    def Draw(caller='',Fade=[]):
 #useful debug?        
 #        if caller:
 #            print caller
 # end of useful debug
         mapData = generalData['Map']
+        D4mapData = generalData.get('4DmapData',{})
         pageName = ''
         page = getSelection()
         if page:
             pageName = G2frame.dataDisplay.GetPageText(page)
         rhoXYZ = []
-        if len(mapData['rho']):
-            VP = np.array(drawingData['viewPoint'][0])-np.array([.5,.5,.5])
+        rho = []
+        if len(D4mapData.get('rho',[])):        #preferentially select 4D map if there
+            rho = D4mapData['rho'][:,:,:,int(G2frame.tau*10)]   #pick current tau 3D slice
+        elif len(mapData['rho']):               #ordinary 3D map
+            rho = mapData['rho']
+        if len(rho):
+            VP = drawingData['viewPoint'][0]-np.array([.5,.5,.5])
             contLevel = drawingData['contourLevel']*mapData['rhoMax']
-            if 'delt-F' in mapData['MapType'] or 'N' in mapData['Type']:
-                rho = ma.array(mapData['rho'],mask=(np.abs(mapData['rho'])<contLevel))
+            if 'delt-F' in mapData['MapType'] or 'N' in mapData.get('Type',''):
+                rho = ma.array(rho,mask=(np.abs(rho)<contLevel))
             else:
-                rho = ma.array(mapData['rho'],mask=(mapData['rho']<contLevel))
+                rho = ma.array(rho,mask=(rho<contLevel))
             steps = 1./np.array(rho.shape)
             incre = np.where(VP>=0,VP%steps,VP%steps-steps)
             Vsteps = -np.array(VP/steps,dtype='i')
             rho = np.roll(np.roll(np.roll(rho,Vsteps[0],axis=0),Vsteps[1],axis=1),Vsteps[2],axis=2)
             indx = np.array(ma.nonzero(rho)).T
             rhoXYZ = indx*steps+VP-incre
-            Nc = len(rhoXYZ)
+            Nc = max(len(rhoXYZ),1)
             rcube = 2000.*Vol/(ForthirdPI*Nc)
             rmax = math.exp(math.log(rcube)/3.)**2
-            radius = min(drawingData['mapSize']**2,rmax)
-            view = np.array(drawingData['viewPoint'][0])
+            radius = min(drawingData.get('mapSize',10.)**2,rmax)
+            view = drawingData['viewPoint'][0]
             Rok = np.sum(np.inner(Amat,rhoXYZ-view).T**2,axis=1)>radius
         Ind = GetSelectedAtoms()
         VS = np.array(Page.canvas.GetSize())
@@ -4941,6 +5209,10 @@ def PlotStructure(G2frame,data,firstCall=False):
         time0 = time.time()
 #        glEnable(GL_BLEND)
 #        glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA)
+        if not len(Fade):
+            atmFade = np.ones(len(drawingData['Atoms']))
+        else:
+            atmFade = Fade
         for iat,atom in enumerate(drawingData['Atoms']):
             x,y,z = atom[cx:cx+3]
             Bonds = atom[-2]
@@ -4950,7 +5222,9 @@ def PlotStructure(G2frame,data,firstCall=False):
             except ValueError:
                 atNum = -1
             CL = atom[cs+2]
-            atColor = np.array(CL)/255.
+            if not atmFade[iat]:
+                continue
+            atColor = atmFade[iat]*np.array(CL)/255.
             if drawingData['showRigidBodies'] and atom[ci] in rbAtmDict:
                 bndColor = Or
             else:
@@ -5101,7 +5375,11 @@ def PlotStructure(G2frame,data,firstCall=False):
     else:
         choice = [' save as/key:','jpeg','tiff','bmp','c: center on 1/2,1/2,1/2','n: next','p: previous']
     if generalData['Type'] in ['modulated','magnetic',] and len(drawAtoms):
-        choice += ['+: increase tau','-: decrease tau','0: set tau = 0']
+        choice += ['+: increase tau','-: decrease tau','0: set tau = 0']    #add 'm: make modulation movie'
+
+    Tx,Ty,Tz = drawingData['viewPoint'][0]
+    rho = G2mth.getRho([Tx,Ty,Tz],mapData)
+    G2frame.G2plotNB.status.SetStatusText('View point: %.4f, %.4f, %.4f; density: %.4f'%(Tx,Ty,Tz,rho),1)
 
     cb = wx.ComboBox(G2frame.G2plotNB.status,style=wx.CB_DROPDOWN|wx.CB_READONLY,choices=choice)
     cb.Bind(wx.EVT_COMBOBOX, OnKeyBox)
@@ -5111,9 +5389,10 @@ def PlotStructure(G2frame,data,firstCall=False):
     Page.canvas.Bind(wx.EVT_RIGHT_DOWN, OnMouseDown)
     Page.canvas.Bind(wx.EVT_MIDDLE_DOWN, OnMouseDown)
     Page.canvas.Bind(wx.EVT_KEY_UP, OnKey)
+    Page.canvas.Bind(wx.EVT_KEY_DOWN,OnKeyPressed)
     Page.canvas.Bind(wx.EVT_MOTION, OnMouseMove)
     Page.canvas.Bind(wx.EVT_SIZE, OnSize)
-#    Page.canvas.Bind(wx.EVT_SET_FOCUS, OnFocus)
+    Page.canvas.Bind(wx.EVT_SET_FOCUS, OnFocus)
     Page.camera['position'] = drawingData['cameraPos']
     Page.camera['viewPoint'] = np.inner(Amat,drawingData['viewPoint'][0])
     Page.camera['backColor'] = backColor/255.
