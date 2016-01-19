@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 #GSASIIobj - data objects for GSAS-II
 ########### SVN repository information ###################
-# $Date: 2015-06-02 15:36:58 -0400 (Tue, 02 Jun 2015) $
+# $Date: 2015-11-21 10:45:03 -0500 (Sat, 21 Nov 2015) $
 
 # $Author: vondreele $
-# $Revision: 1875 $
-# $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIobj.py $
-# $Id: GSASIIobj.py 1875 2015-06-02 19:36:58Z vondreele $
+# $Revision: 2062 $
+# $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASIIobj.py $
+# $Id: GSASIIobj.py 2062 2015-11-21 15:45:03Z vondreele $
 ########### SVN repository information ###################
 
 '''
@@ -867,7 +867,7 @@ import GSASIIpath
 import GSASIImath as G2mth
 import numpy as np
 
-GSASIIpath.SetVersionNumber("$Revision: 1875 $")
+GSASIIpath.SetVersionNumber("$Revision: 2062 $")
 
 DefaultControls = {
     'deriv type':'analytic Hessian',
@@ -883,7 +883,7 @@ DefaultControls = {
     'doMCMC':False,
 # Anton Gagin />   
 
-    'Copy2Next':False,'Reverse Seq':False,
+    'Copy2Next':False,'Reverse Seq':False,'HatomFix':False,
     'Author':'no name',
     'FreePrm1':'Sample humidity (%)',
     'FreePrm2':'Sample voltage (V)',
@@ -1006,7 +1006,7 @@ def IndexAllIds(Histograms,Phases):
         pId = str(Phases[ph]['pId'])
         PhaseIdLookup[pId] = (ph,ranId)
         PhaseRanIdLookup[ranId] = pId
-        shortname = ph[:10]
+        shortname = ph  #[:10]
         while shortname in ShortPhaseNames.values():
             shortname = ph[:8] + ' ('+ pId + ')'
         ShortPhaseNames[pId] = shortname
@@ -1197,9 +1197,12 @@ def VarDescr(varname):
         if l[2] == 'Back': # background parameters are "special", alas
             s = 'Hist='+ShortHistNames.get(l[1],'? #'+str(l[1]))
             l[-1] += ' #'+str(l[3])
-        elif l[4] is not None: # rigid body parameter
+        elif l[4] is not None: # rigid body parameter or modulation parm
             lbl = ShortPhaseNames.get(l[0],'phase?')
-            s = "Res #"+str(l[3])+" body #"+str(l[4])+" in "+str(lbl)
+            if 'RB' in l[2]:    #rigid body parm
+                s = "Res #"+str(l[3])+" body #"+str(l[4])+" in "+str(lbl)
+            else: #modulation parm
+                s = 'Atom %s wave %s in %s'%(LookupAtomLabel(l[0],l[3])[0],l[4],lbl)
         elif l[3] is not None: # atom parameter, 
             lbl = ShortPhaseNames.get(l[0],'phase?')
             try:
@@ -1311,6 +1314,7 @@ def CompileVarDesc():
         'Es$' : 'Secondary type II extinction',
         'Eg$' : 'Secondary type I extinction',
         'Flack' : 'Flack parameter',
+        'TwinFr' : 'Twin fraction',
         #Histogram vars (:h:<var>)
         'Absorption' : 'Absorption coef.',
         'Displace([XY])' : 'Debye-Scherrer sample displacement \\1',
@@ -1333,10 +1337,12 @@ def CompileVarDesc():
         'mV([0-2])$' : 'Modulation vector component \\1',
         'Fsin'  :   'Sin site fraction modulation',
         'Fcos'  :   'Cos site fraction modulation',
-        'Fzero'  :   'Crenel function offset',
+        'Fzero'  :   'Crenel function offset',      #may go away
         'Fwid'   :   'Crenel function width',
-        'Tzero'  :   'Sawtooth/ZigZag location',
-        '([XYZ])slope': 'Sawtooth/ZigZag slope for \\1',
+        'Tmin'   :   'ZigZag/Block min location',
+        'Tmax'   :   'ZigZag/Block max location',
+
+        '([XYZ])max': 'ZigZag/Block max value for \\1',
         '([XYZ])sin'  : 'Sin position wave for \\1',
         '([XYZ])cos'  : 'Cos position wave for \\1',
         'U([123][123])sin$' :  'Sin thermal wave for U\\1',
