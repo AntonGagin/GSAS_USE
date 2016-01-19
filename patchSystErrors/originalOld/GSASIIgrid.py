@@ -17,9 +17,6 @@ import wx.grid as wg
 #import wx.wizard as wz
 #import wx.aui
 import wx.lib.scrolledpanel as wxscroll
-
-
-
 import time
 import copy
 import cPickle
@@ -61,12 +58,6 @@ WACV = wx.ALIGN_CENTER_VERTICAL
     wxID_PEAKSDISTVP, wxID_PEAKSVIEWPT, wxID_FINDEQVPEAKS,wxID_SHOWBONDS,wxID_MULTIMCSA,
     wxID_SINGLEMCSA,wxID_4DCHARGEFLIP,
 ] = [wx.NewId() for item in range(16)]
-
-
-
-
-
-
 
 [ wxID_PWDRADD, wxID_HKLFADD, wxID_PWDANALYSIS, wxID_PWDCOPY, wxID_PLOTCTRLCOPY, 
     wxID_DATADELETE,wxID_DATACOPY,wxID_DATACOPYFLAGS,wxID_DATASELCOPY,
@@ -863,10 +854,6 @@ class DataFrame(wx.Frame):
         self.PWDRMenu.Append(menu=self.ErrorAnal,title='Commands')
         self.ErrorAnal.Append(id=wxID_PWDANALYSIS,kind=wx.ITEM_NORMAL,text='Error Analysis',
             help='Error analysis on powder pattern')
-
-
-
-
         self.ErrorAnal.Append(id=wxID_PWDCOPY,kind=wx.ITEM_NORMAL,text='Copy params',
             help='Copy of PWDR parameters')
         self.ErrorAnal.Append(id=wxID_PLOTCTRLCOPY,kind=wx.ITEM_NORMAL,text='Copy plot controls',
@@ -1551,53 +1538,6 @@ def UpdateControls(G2frame,data):
         data['Reverse Seq'] = False
     if 'UsrReject' not in data:
         data['UsrReject'] = {'minF/sig':0,'MinExt':0.01,'MaxDF/F':20.,'MaxD':500.,'MinD':0.05}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     if 'HatomFix' not in data:
         data['HatomFix'] = False
     
@@ -1755,294 +1695,7 @@ def UpdateControls(G2frame,data):
 #        Hfix.Bind(wx.EVT_CHECKBOX,OnHatomFix)
 #        LSSizer.Add(Hfix,0,WACV)   #for now
         return LSSizer
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def AuthSizer():
 
         def OnAuthor(event):
@@ -2076,36 +1729,6 @@ def UpdateControls(G2frame,data):
     mainSizer.Add(AuthSizer())
     mainSizer.Add((5,5),0)
         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     mainSizer.Layout()    
     G2frame.dataDisplay.SetSizer(mainSizer)
     G2frame.dataDisplay.SetSize(mainSizer.Fit(G2frame.dataFrame))
@@ -3246,12 +2869,6 @@ def UpdatePWHKPlot(G2frame,kind,item):
         
     def OnErrorAnalysis(event):
         G2plt.PlotDeltSig(G2frame,kind)
-
-
-
-
-
-
         
     def OnWtFactor(event):
         try:
@@ -3296,9 +2913,6 @@ def UpdatePWHKPlot(G2frame,kind,item):
     if kind in ['PWDR','SASD']:
         SetDataMenuBar(G2frame,G2frame.dataFrame.PWDRMenu)
         G2frame.dataFrame.Bind(wx.EVT_MENU, OnErrorAnalysis, id=wxID_PWDANALYSIS)
-
-
-
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopySelectedItems, id=wxID_PWDCOPY)
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopyPlotCtrls, id=wxID_PLOTCTRLCOPY)
     elif kind in ['HKLF',]:
