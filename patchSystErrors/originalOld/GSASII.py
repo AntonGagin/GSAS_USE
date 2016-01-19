@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 #GSASII
 ########### SVN repository information ###################
-# $Date: 2015-06-02 15:36:58 -0400 (Tue, 02 Jun 2015) $
-# $Author: vondreele $
-# $Revision: 1875 $
-# $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASII.py $
-# $Id: GSASII.py 1875 2015-06-02 19:36:58Z vondreele $
+# $Date: 2015-12-21 12:03:08 -0500 (Mon, 21 Dec 2015) $
+# $Author: toby $
+# $Revision: 2101 $
+# $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASII.py $
+# $Id: GSASII.py 2101 2015-12-21 17:03:08Z toby $
 ########### SVN repository information ###################
 '''
 *GSAS-II Main Module*
@@ -64,16 +64,19 @@ except ImportError:
     
 # load the GSAS routines
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1875 $")
+GSASIIpath.SetVersionNumber("$Revision: 2101 $")
 import GSASIIIO as G2IO
 import GSASIIgrid as G2gd
 import GSASIIctrls as G2G
 import GSASIIplot as G2plt
 import GSASIIpwd as G2pwd
 import GSASIIpwdGUI as G2pdG
+import GSASIIphsGUI as G2phsG
+import GSASIIimgGUI as G2imG
 import GSASIIspc as G2spc
 import GSASIIstrMain as G2stMn
 import GSASIIstrIO as G2stIO
+import GSASIImath as G2mth
 import GSASIImapvars as G2mv
 import GSASIIobj as G2obj
 import GSASIIlattice as G2lat
@@ -178,7 +181,7 @@ class GSASII(wx.Frame):
         item = parent.Append(
             help='',id=wx.ID_ANY,
             kind=wx.ITEM_NORMAL,
-            text='Add phase')
+            text='Add new phase')
         self.Bind(wx.EVT_MENU, self.OnAddPhase, id=item.GetId())
         item = parent.Append(
             help='',id=wx.ID_ANY,
@@ -240,6 +243,8 @@ class GSASII(wx.Frame):
         self._init_Import_routines('pwd',self.ImportPowderReaderlist,'Powder_Data')
         self.ImportSmallAngleReaderlist = []
         self._init_Import_routines('sad',self.ImportSmallAngleReaderlist,'SmallAngle_Data')
+        self.ImportImageReaderlist = []
+        self._init_Import_routines('img',self.ImportImageReaderlist,'Images')
         self.ImportMenuId = {}
 
     def _init_Import_routines(self,prefix,readerlist,errprefix):
@@ -279,13 +284,15 @@ class GSASII(wx.Frame):
                             if not callable(getattr(clss[1],m)): break
                         else:
                             reader = clss[1]() # create an import instance
-                            readerlist.append(reader)
+                            if reader.UseReader:
+                                readerlist.append(reader)
             except AttributeError:
                 print 'Import_'+errprefix+': Attribute Error '+str(filename)
-                pass
-            except ImportError:
-                print 'Import_'+errprefix+': Error importing file '+str(filename)
-                pass
+            #except ImportError:
+            #    print 'Import_'+errprefix+': Error importing file '+str(filename)
+            except Exception,errmsg:
+                print('\nImport_'+errprefix+': Error importing file '+str(filename))
+                print('Error message: '+str(errmsg)+'\n')
             if fp: fp.close()
 
     def EnableSeqRefineMenu(self):
@@ -298,25 +305,60 @@ class GSASII(wx.Frame):
         else:
             for i in self.SeqRefine: i.Enable(False)
 
-    def OnImportGeneric(self,reader,readerlist,label,multiple=False,usedRanIdList=[]):
-        '''Used to import Phases, powder dataset or single
-        crystal datasets (structure factor tables) using reader objects
-        subclassed from :class:`GSASIIIO.ImportPhase`, :class:`GSASIIIO.ImportStructFactor`
-        or :class:`GSASIIIO.ImportPowderData`. If a reader is specified, only
-        that will be attempted, but if no reader is specified, every one
-        that is potentially compatible (by file extension) will
-        be tried on the selected file(s). 
+    def PreviewFile(self,filename,fp):
+        'confirm we have the right file'
+        rdmsg = 'File '+str(filename)+' begins:\n\n'
+        for i in range(3):
+            rdmsg += fp.readline()
+        rdmsg += '\n\nDo you want to read this file?'
+        if not all([ord(c) < 128 and ord(c) != 0 for c in rdmsg]): # show only if ASCII
+            rdmsg = 'File '+str(
+                filename)+' is a binary file. Do you want to read this file?'
+        # it would be better to use something that
+        # would resize better, but this will do for now
+        dlg = wx.MessageDialog(
+            self, rdmsg,
+            'Is this the file you want?', 
+            wx.YES_NO | wx.ICON_QUESTION,
+            )
+        dlg.SetSize((700,300)) # does not resize on Mac
+        result = wx.ID_NO
+        try:
+            result = dlg.ShowModal()
+        finally:
+            dlg.Destroy()
+        if result == wx.ID_NO: return True
+        return False
+    
+    def OnImportGeneric(self,reader,readerlist,label,multiple=False,
+                        usedRanIdList=[],Preview=True):
+        '''Used for all imports, including Phases, datasets, images...
 
-        :param readerobject reader: This will be a reference to
+        Called from :meth:`GSASII.OnImportPhase`, :meth:`GSASII.OnImportImage`,
+        :meth:`GSASII.OnImportSfact`, :meth:`GSASII.OnImportPowder` and
+        :meth:`GSASII.OnImportSmallAngle`
+
+        Uses reader_objects subclassed from :class:`GSASIIIO.ImportPhase`,
+        :class:`GSASIIIO.ImportStructFactor`,
+        :class:`GSASIIIO.ImportPowderData`,
+        :class:`GSASIIIO.ImportSmallAngleData` or
+        :class:`GSASIIIO.ImportImage`.
+        If a specific reader is specified, only that method will be called,
+        but if no reader is specified, every one that is potentially
+        compatible (by file extension) will be tried on the file(s)
+        selected in the Open File dialog.
+
+        :param reader_object reader: This will be a reference to
           a particular object to be used to read a file or None,
           if every appropriate reader should be used.
 
         :param list readerlist: a list of reader objects appropriate for
           the current read attempt. At present, this will be either
-          self.ImportPhaseReaderlist, self.ImportSfactReaderlist or
-          self.ImportPowderReaderlist (defined in _init_Imports from
-          the files found in the path), but in theory this list could
-          be tailored. Used only when reader is None.
+          self.ImportPhaseReaderlist, self.ImportSfactReaderlist
+          self.ImportPowderReaderlist or self.ImportImageReaderlist
+          (defined in _init_Imports from the files found in the path),
+          but in theory this list could be tailored.
+          Used only when reader is None.
 
         :param str label: string to place on the open file dialog:
           Open `label` input file
@@ -327,6 +369,10 @@ class GSASII(wx.Frame):
 
         :param list usedRanIdList: an optional list of random Ids that 
           have been used and should not be reused
+
+        :param bool Preview: indicates if a preview of the file should
+          be shown. Default is True, but set to False for image files
+          which are all binary. 
 
         :returns: a list of reader objects (rd_list) that were able
           to read the specified file(s). This list may be empty. 
@@ -394,7 +440,7 @@ class GSASII(wx.Frame):
                 if extractedfile is None: continue # error or Cancel 
                 if extractedfile != filename:
                     filename,self.zipfile = extractedfile,filename # now use the file that was created
-            # set what formats are compatible with this file
+            # determine which formats are compatible with this file
             primaryReaders = []
             secondaryReaders = []
             for rd in readerlist:
@@ -403,62 +449,49 @@ class GSASII(wx.Frame):
                     secondaryReaders.append(rd)
                 elif flag:
                     primaryReaders.append(rd)
-            if len(secondaryReaders) + len(primaryReaders) == 0:
+            if len(secondaryReaders) + len(primaryReaders) == 0 and reader:
+                self.ErrorDialog('Not supported','The selected reader cannot read file '+filename)
+                return []
+            elif len(secondaryReaders) + len(primaryReaders) == 0:
                 self.ErrorDialog('No Format','No matching format for file '+filename)
                 return []
 
             fp = None
             msg = ''
-            try:
-                fp = open(filename,'Ur')
-                if len(filelist) == 1:
-                    # confirm we have the right file
-                    rdmsg = 'File '+str(filename)+' begins:\n\n'
-                    for i in range(3):
-                        rdmsg += fp.readline()
-                    rdmsg += '\n\nDo you want to read this file?'
-                    if not all([ord(c) < 128 and ord(c) != 0 for c in rdmsg]): # show only if ASCII
-                        rdmsg = 'File '+str(
-                            filename)+' is a binary file. Do you want to read this file?'
-                    result = wx.ID_NO
-                    # it would be better to use something that
-                    # would resize better, but this will do for now
-                    dlg = wx.MessageDialog(
-                        self, rdmsg,
-                        'Is this the file you want?', 
-                        wx.YES_NO | wx.ICON_QUESTION,
-                        )
-                    dlg.SetSize((700,300)) # does not resize on Mac
-                    try:
-                        result = dlg.ShowModal()
-                    finally:
-                        dlg.Destroy()
-                    if result == wx.ID_NO: return []
-                            
-                self.lastimport = filename # this is probably not what I want to do -- it saves only the
-                # last name in a series. See rd.readfilename for a better name.
-                
-                # try the file first with Readers that specify the
-                # file's extension and later with ones that merely allow it
-                errorReport = ''
-                for rd in primaryReaders+secondaryReaders:
-                    rd.ReInitialize() # purge anything from a previous read
+            fp = open(filename,'Ur')
+            if len(filelist) == 1 and Preview:
+                if self.PreviewFile(filename,fp): return []
+            self.lastimport = filename # this is probably not what I want to do -- it saves only the
+            # last name in a series. See rd.readfilename for a better name.
+
+            # try the file first with Readers that specify the
+            # file's extension and later with ones that merely allow it
+            errorReport = ''
+            for rd in primaryReaders+secondaryReaders:
+                rd.ReInitialize() # purge anything from a previous read
+                fp.seek(0)  # rewind
+                rd.errors = "" # clear out any old errors
+                if not rd.ContentsValidator(fp): # rejected on cursory check
+                    errorReport += "\n  "+rd.formatName + ' validator error'
+                    if rd.errors: 
+                        errorReport += ': '+rd.errors
+                    continue 
+                repeat = True
+                rdbuffer = {} # create temporary storage for file reader
+                block = 0
+                while repeat: # loop if the reader asks for another pass on the file
+                    block += 1
+                    repeat = False
                     fp.seek(0)  # rewind
-                    rd.errors = "" # clear out any old errors
-                    if not rd.ContentsValidator(fp): # rejected on cursory check
-                        errorReport += "\n  "+rd.formatName + ' validator error'
-                        if rd.errors: 
-                            errorReport += ': '+rd.errors
-                        continue 
-                    repeat = True
-                    rdbuffer = {} # create temporary storage for file reader
-                    block = 0
-                    while repeat: # loop if the reader asks for another pass on the file
-                        block += 1
-                        repeat = False
-                        fp.seek(0)  # rewind
-                        rd.objname = os.path.basename(filename)
-                        flag = False
+                    rd.objname = os.path.basename(filename)
+                    flag = False
+                    if GSASIIpath.GetConfigValue('debug'):
+                        flag = rd.Reader(filename,fp,self,
+                                         buffer=rdbuffer,
+                                         blocknum=block,
+                                         usedRanIdList=usedRanIdList,
+                                         )
+                    else:
                         try:
                             flag = rd.Reader(filename,fp,self,
                                              buffer=rdbuffer,
@@ -471,35 +504,31 @@ class GSASII(wx.Frame):
                             import traceback
                             rd.errors += "\n  Unhandled read exception: "+str(detail)
                             rd.errors += "\n  Traceback info:\n"+str(traceback.format_exc())
-                        if flag: # this read succeeded
-                            rd.readfilename = filename
-                            rd_list.append(copy.deepcopy(rd)) # save the result before it is written over
-                            if rd.repeat:
-                                repeat = True
-                            continue
-                        errorReport += '\n'+rd.formatName + ' read error'
-                        if rd.errors:
-                            errorReport += ': '+rd.errors
-                    if rd_list: # read succeeded, was there a warning or any errors? 
-                        if rd.warnings:
-                            self.ErrorDialog('Read Warning','The '+ rd.formatName+
-                                             ' reader reported a warning message:\n\n'+
-                                             rd.warnings)
-                        break # success in reading, try no further
+                    if flag: # this read succeeded
+                        rd.readfilename = filename
+                        rd_list.append(copy.deepcopy(rd)) # save the result before it is written over
+                        if rd.repeat:
+                            repeat = True
+                        continue
+                    errorReport += '\n'+rd.formatName + ' read error'
+                    if rd.errors:
+                        errorReport += ': '+rd.errors
+                if rd_list: # read succeeded, was there a warning or any errors? 
+                    if rd.warnings:
+                        self.ErrorDialog('Read Warning','The '+ rd.formatName+
+                                         ' reader reported a warning message:\n\n'+
+                                         rd.warnings)
+                    break # success in reading, try no further
+            else:
+                if singlereader:
+                    self.ErrorDialog('Read Error','The '+ rd.formatName+
+                                     ' reader was not able to read file '+filename+msg+
+                                     '\n\nError message(s):\n'+errorReport
+                                     )
                 else:
-                    if singlereader:
-                        self.ErrorDialog('Read Error','The '+ rd.formatName+
-                                         ' reader was not able to read file '+filename+msg+
-                                         '\n\nError message(s):\n'+errorReport
-                                         )
-                    else:
-                        self.ErrorDialog('Read Error','No reader was able to read file '+filename+msg+
-                                         '\n\nError messages:\n'+errorReport
-                                         )
-            except:
-                import traceback
-                print traceback.format_exc()
-                self.ErrorDialog('Open Error','Unexpected error trying to open or read file '+filename)
+                    self.ErrorDialog('Read Error','No reader was able to read file '+filename+msg+
+                                     '\n\nError messages:\n'+errorReport
+                                     )
             if fp: fp.close()
         return rd_list
 
@@ -551,8 +580,8 @@ class GSASII(wx.Frame):
                 return []
         finally:
             dlg.Destroy()
-        return filelist
-            
+        return filelist            
+        
     def OnImportPhase(self,event):
         '''Called in response to an Import/Phase/... menu item
         to read phase information.
@@ -695,21 +724,72 @@ class GSASII(wx.Frame):
                         else:
                             H = hkl
                         ref[4+Super] = np.sqrt(1./G2lat.calc_rDsq2(H,G))
-                        iabsnt,ref[3+Super],Uniq,phi = G2spc.GenHKLf(H,SGData)
+                        iabsnt = G2spc.GenHKLf(H,SGData)[0]
                         if iabsnt:  #flag space gp. absences
-                            ref[3+Super] = 0
+                            if Super: 
+                                if not ref[2+Super]:
+                                    ref[3+Super] = 0
+                                else:
+                                    ref[3+Super] = 1    #twin id?
+                            else:
+                                ref[3] = 0
                     UseList[histoName] = SetDefaultDData(reflData['Type'],histoName)
                 elif histoName in PWDRlist:
                     Id = G2gd.GetPatternTreeItemId(self,self.root,histoName)
                     refList = self.PatternTree.GetItemPyData(
                         G2gd.GetPatternTreeItemId(self,Id,'Reflection Lists'))
-                    refList[generalData['Name']] = []
+                    refList[generalData['Name']] = {}
                     UseList[histoName] = SetDefaultDData('PWDR',histoName,NShkl=NShkl,NDij=NDij)
                 else:
                     raise Exception('Unexpected histogram '+str(histoName))
         wx.EndBusyCursor()
         return # success
         
+    def _Add_ImportMenu_Image(self,parent):
+        '''configure the Import Image menus accord to the readers found in _init_Imports
+        '''
+        submenu = wx.Menu()
+        item = parent.AppendMenu(wx.ID_ANY, 'Image',
+            submenu, help='Import image file')
+        for reader in self.ImportImageReaderlist:
+            item = submenu.Append(wx.ID_ANY,help=reader.longFormatName,
+                kind=wx.ITEM_NORMAL,text='from '+reader.formatName+' file')
+            self.ImportMenuId[item.GetId()] = reader
+            self.Bind(wx.EVT_MENU, self.OnImportImage, id=item.GetId())
+        item = submenu.Append(wx.ID_ANY,
+                              help='Import image data, use file to try to determine format',
+                              kind=wx.ITEM_NORMAL,
+                              text='guess format from file')
+        self.Bind(wx.EVT_MENU, self.OnImportImage, id=item.GetId())
+        
+    def OnImportImage(self,event):
+        '''Called in response to an Import/Image/... menu item
+        to read an image from a file. Like all the other imports,
+        dict self.ImportMenuId is used to look up the specific
+        reader item associated with the menu item, which will be
+        None for the last menu item, which is the "guess" option
+        where all appropriate formats will be tried.
+
+        A reader object is filled each time an image is read. 
+        '''
+        # look up which format was requested
+        reqrdr = self.ImportMenuId.get(event.GetId())
+        rdlist = self.OnImportGeneric(reqrdr,
+                                  self.ImportImageReaderlist,
+                                  'image',multiple=True,Preview=False)
+        if not rdlist: return
+        first = True
+        for rd in rdlist:
+            if first:
+                first = False
+                self.CheckNotebook()
+            if rd.repeatcount == 1 and not rd.repeat: # skip image number if only one in set
+                rd.Data['ImageTag'] = None
+            else:
+                rd.Data['ImageTag'] = rd.repeatcount
+            G2IO.LoadImage2Tree(rd.readfilename,self,rd.Comments,rd.Data,rd.Npix,rd.Image)
+        self.PatternTree.SelectItem(G2gd.GetPatternTreeItemId(self,self.Image,'Image Controls'))             #show last image to have beeen read
+                    
     def _Add_ImportMenu_Sfact(self,parent):
         '''configure the Import Structure Factor menus accord to the readers found in _init_Imports
         '''
@@ -776,7 +856,7 @@ class GSASII(wx.Frame):
                     Sub = self.PatternTree.AppendItem(Id,text='Instrument Parameters')
                     self.PatternTree.SetItemPyData(Sub,copy.copy(rd.Parameters))
                     self.PatternTree.SetItemPyData(
-                        self.PatternTree.AppendItem(Id,text='Reflection List'),[])  #dummy entry for GUI use
+                        self.PatternTree.AppendItem(Id,text='Reflection List'),{})  #dummy entry for GUI use
                     newHistList.append(HistName)
             else:
                 valuesdict = {'wtFactor':1.0,'Dummy':False,'ranId':ran.randint(0,sys.maxint),}
@@ -789,7 +869,7 @@ class GSASII(wx.Frame):
                 Sub = self.PatternTree.AppendItem(Id,text='Instrument Parameters')
                 self.PatternTree.SetItemPyData(Sub,rd.Parameters)
                 self.PatternTree.SetItemPyData(
-                    self.PatternTree.AppendItem(Id,text='Reflection List'),[])  #dummy entry for GUI use
+                    self.PatternTree.AppendItem(Id,text='Reflection List'),{})  #dummy entry for GUI use
                 newHistList.append(HistName)
                 
             self.PatternTree.SelectItem(Id)
@@ -832,6 +912,15 @@ class GSASII(wx.Frame):
                 refDict,reflData = self.PatternTree.GetItemPyData(Id)
                 UseList[histoName] = SetDefaultDData(reflData['Type'],histoName)
                 G,g = G2lat.cell2Gmat(generalData['Cell'][1:7])
+                if 'TwMax' in reflData:     #nonmerohedral twins present
+                    UseList[histoName]['Twins'] = []
+                    for iT in range(reflData['TwMax'][0]+1):
+                        if iT in reflData['TwMax'][1]:
+                            UseList[histoName]['Twins'].append([False,0.0])
+                        else:
+                            UseList[histoName]['Twins'].append([np.array([[1,0,0],[0,1,0],[0,0,1]]),[1.0,False,reflData['TwMax'][0]]])
+                else:   #no nonmerohedral twins
+                    UseList[histoName]['Twins'] = [[np.array([[1,0,0],[0,1,0],[0,0,1]]),[1.0,False,0]],]
                 for iref,ref in enumerate(reflData['RefList']):
                     hkl = ref[:3]
                     if Super:
@@ -839,9 +928,15 @@ class GSASII(wx.Frame):
                     else:
                         H = hkl
                     ref[4+Super] = np.sqrt(1./G2lat.calc_rDsq2(H,G))
-                    iabsnt,ref[3+Super],Uniq,phi = G2spc.GenHKLf(H,SGData)
+                    iabsnt,mul,Uniq,phi = G2spc.GenHKLf(H,SGData)
                     if iabsnt:  #flag space gp. absences
-                        ref[3+Super] = 0
+                        if Super: 
+                            if not ref[2+Super]:
+                                ref[3+Super] = 0
+                            else:
+                                ref[3+Super] = 1    #twin id?
+                        else:
+                            ref[3] = 0
         wx.EndBusyCursor()
         
         return # success
@@ -994,6 +1089,7 @@ class GSASII(wx.Frame):
             Irads = {0:' ',1:'CrKa',2:'FeKa',3:'CuKa',4:'MoKa',5:'AgKa',6:'TiKa',7:'CoKa'}
             DataType = Iparm['INS   HTYPE '].strip()[:3]  # take 1st 3 chars
             # override inst values with values read from data file
+            Bank = rd.powderentry[2]    #should be used in multibank iparm files
             if rd.instdict.get('type'):
                 DataType = rd.instdict.get('type')
             data = [DataType,]
@@ -1045,6 +1141,7 @@ class GSASII(wx.Frame):
                 codes.extend([0,0,0,0,0,0,0])
                 Iparm1 = G2IO.makeInstDict(names,data,codes)
                 Iparm1['Source'] = [Irads[irad],Irads[irad]]
+                Iparm1['Bank'] = [Bank,Bank,0]
                 return [Iparm1,{}]
             elif 'T' in DataType:
                 names = ['Type','fltPath','2-theta','difC','difA', 'difB','Zero','alpha','beta-0','beta-1',
@@ -1092,6 +1189,7 @@ class GSASII(wx.Frame):
                             s = Iparm['INS  1PRCF12'].split()
                             data.extend([0.0,0.0,G2IO.sfloat(s[0]),G2IO.sfloat(s[1]),0.0,0.0,0.0,azm])    #beta-q, sig-0, sig-1, sig-2, sig-q, X, Y                       
                 Inst1 = G2IO.makeInstDict(names,data,codes)
+                Inst1['Bank'] = [Bank,Bank,0]
                 Inst2 = {}
                 if pfType < 0:
                     Ipab = 'INS  1PAB'+str(-pfType)
@@ -1595,6 +1693,12 @@ class GSASII(wx.Frame):
                 G2gd.GetPatternTreeItemId(self,Id,'Reflection Lists'))
             refList[generalData['Name']] = []
         return # success
+        
+    def OnPreferences(self,event):
+        'Edit the GSAS-II configuration variables'
+        dlg = G2G.SelectConfigSetting(self)
+        dlg.ShowModal() == wx.ID_OK
+        dlg.Destroy()
 
     def _Add_ImportMenu_smallangle(self,parent):
         '''configure the Small Angle Data menus accord to the readers found in _init_Imports
@@ -1872,7 +1976,7 @@ class GSASII(wx.Frame):
             for filename in glob.iglob(os.path.join(path,"G2export*.py")):
                 filelist.append(filename)    
         filelist = sorted(list(set(filelist))) # remove duplicates
-        exporterlist = []
+        self.exporterlist = []
         # go through the routines and import them, saving objects that
         # have export routines (method Exporter)
         for filename in filelist:
@@ -1891,7 +1995,7 @@ class GSASII(wx.Frame):
                             if not callable(getattr(clss[1],m)): break
                         else:
                             exporter = clss[1](self) # create an export instance
-                            exporterlist.append(exporter)
+                            self.exporterlist.append(exporter)
             except AttributeError:
                 print 'Import_'+errprefix+': Attribute Error'+str(filename)
                 pass
@@ -1900,7 +2004,7 @@ class GSASII(wx.Frame):
                 pass
             if fp: fp.close()
         # Add submenu item(s) for each Exporter by its self-declared type (can be more than one)
-        for obj in exporterlist:
+        for obj in self.exporterlist:
             #print 'exporter',obj
             for typ in obj.exporttype:
                 if typ == "project":
@@ -1927,8 +2031,12 @@ class GSASII(wx.Frame):
                     text=obj.formatName)
                 self.Bind(wx.EVT_MENU, obj.Exporter, id=item.GetId())
                 self.ExportLookup[item.GetId()] = typ # lookup table for submenu item
-                
-        #code to debug an Exporter. hard-coded the routine below, to allow a reload before use
+        item = imagemenu.Append(wx.ID_ANY,
+                        help='Export image controls and masks for multiple images',
+                        kind=wx.ITEM_NORMAL,
+                        text='Multiple image controls and masks')
+        self.Bind(wx.EVT_MENU, self.OnSaveMultipleImg, id=item.GetId())
+        #code to debug an Exporter. hard-code the routine below, to allow a reload before use
         # def DebugExport(event):
         #      print 'start reload'
         #      reload(G2IO)
@@ -1991,10 +2099,14 @@ class GSASII(wx.Frame):
         self._Add_CalculateMenuItems(Calculate)
         Import = wx.Menu(title='')        
         menubar.Append(menu=Import, title='Import')
+        self._Add_ImportMenu_Image(Import)
         self._Add_ImportMenu_Phase(Import)
         self._Add_ImportMenu_powder(Import)
         self._Add_ImportMenu_Sfact(Import)
         self._Add_ImportMenu_smallangle(Import)
+        item = File.Append(wx.ID_PREFERENCES, text = "&Preferences")
+        self.Bind(wx.EVT_MENU, self.OnPreferences, item)
+
         #======================================================================
         # Code to help develop/debug an importer, much is hard-coded below
         # but module is reloaded before each use, allowing faster testing
@@ -2124,6 +2236,7 @@ class GSASII(wx.Frame):
         self.Weight = False
         self.IfPlot = False
         self.DDShowAll = False
+        self.atmSel = ''
         self.PatternId = 0
         self.PickId = 0
         self.PickIdText = None
@@ -2150,10 +2263,18 @@ class GSASII(wx.Frame):
         self.seqLines = True #draw lines between points
         self.plotView = 0
         self.Image = 0
-        self.oldImagefile = ''
-        self.ImageZ = []
+        self.oldImagefile = '' # the name of the last image file read
+        self.oldImageTag = None # the name of the tag for multi-image files
+        self.ImageZ = []  # this contains the image plotted and used for integration
+        # self.ImageZ and self.oldImagefile are set in GSASIIplot.PlotImage
+        # and GSASIIIO.GetImageData
+        # any changes to self.ImageZ should initialize self.oldImagefile to force a reread
         self.Integrate = 0
         self.imageDefault = {}
+        self.IntgOutList = [] # list of integration tree item Ids created in G2IO.SaveIntegration
+        self.AutointPWDRnames = [] # list of autoint created PWDR tree item names (to be deleted on a reset)
+        self.autoIntFrame = None
+        self.IntegratedList = [] # list of already integrated IMG tree items
         self.Sngl = False
         self.ifGetRing = False
         self.MaskKey = ''           #trigger for making image masks
@@ -2303,14 +2424,15 @@ class GSASII(wx.Frame):
             if dlg.ShowModal() == wx.ID_OK:
                 self.HKL = []
                 self.powderfile = dlg.GetPath()
-                comments,peaks = G2IO.GetPowderPeaks(self.powderfile)
+                comments,peaks,limits,wave = G2IO.GetPowderPeaks(self.powderfile)
                 Id = self.PatternTree.AppendItem(parent=self.root,text='PKS '+os.path.basename(self.powderfile))
-                data = ['PKS',Cuka,0.0]
+                data = ['PKS',wave,0.0]
                 names = ['Type','Lam','Zero'] 
                 codes = [0,0,0]
                 inst = [G2IO.makeInstDict(names,data,codes),{}]
                 self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Instrument Parameters'),inst)
                 self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Comments'),comments)
+                self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Limits'),[tuple(limits),limits])
                 self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Index Peak List'),[peaks,[]])
                 self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Unit Cells List'),[])             
                 self.PatternTree.Expand(Id)
@@ -2320,17 +2442,21 @@ class GSASII(wx.Frame):
             dlg.Destroy()
                         
     def OnImageRead(self,event):
-        'Called to read in an image in any known format'
+        '''Called to read in an image in any known format. *** Depreciated. ***
+        Note: When removed, G2IO.ReadLoadImage can also be removed
+        '''
+        G2G.G2MessageBox(self,'Please use the Import/Image/... menu item rather than this','depreciating menu item')
         self.CheckNotebook()
         dlg = wx.FileDialog(
             self, 'Choose image files', '.', '',
-            'Any supported image file (*.edf;*.tif;*.tiff;*.mar*;*.ge*;*.avg;*.sum;*.img;*.G2img;*.png)|'
-            '*.edf;*.tif;*.tiff;*.mar*;*.ge*;*.avg;*.sum;*.img;*.G2img;*.png;*.zip|'
+            'Any supported image file (*.edf;*.tif;*.tiff;*.mar*;*.ge*;*.avg;*.sum;*.img;*.stl;*.G2img;*.png)|'
+            '*.edf;*.tif;*.tiff;*.mar*;*.ge*;*.avg;*.sum;*.img;*.stl;*.G2img;*.png;*.zip|'
             'European detector file (*.edf)|*.edf|'
             'Any detector tif (*.tif;*.tiff)|*.tif;*.tiff|'
             'MAR file (*.mar*)|*.mar*|'
             'GE Image (*.ge*;*.avg;*.sum)|*.ge*;*.avg;*.sum|'
             'ADSC Image (*.img)|*.img|'
+            'Rigaku R-Axis IV (*.stl)|*.stl|'
             'GSAS-II Image (*.G2img)|*.G2img|'
             'Portable Network Graphics image (*.png)|*.png|'
             'Zip archive (*.zip)|*.zip|'
@@ -2341,73 +2467,9 @@ class GSASII(wx.Frame):
                 imagefiles = dlg.GetPaths()
                 imagefiles.sort()
                 for imagefile in imagefiles:
-                    # if a zip file, open and extract
-                    if os.path.splitext(imagefile)[1].lower() == '.zip':
-                        extractedfile = G2IO.ExtractFileFromZip(imagefile,parent=self)
-                        if extractedfile is not None and extractedfile != imagefile:
-                            imagefile = extractedfile
-                    Comments,Data,Npix,Image = G2IO.GetImageData(self,imagefile)
-                    if Comments:
-                        Id = self.PatternTree.AppendItem(parent=self.root,text='IMG '+os.path.basename(imagefile))
-                        self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Comments'),Comments)
-                        Imax = np.amax(Image)
-                        Imin = max(0.0,np.amin(Image))          #force positive
-                        if self.imageDefault:
-                            Data = copy.copy(self.imageDefault)
-                            Data['showLines'] = True
-                            Data['ring'] = []
-                            Data['rings'] = []
-                            Data['cutoff'] = 10
-                            Data['pixLimit'] = 20
-                            Data['edgemin'] = 100000000
-                            Data['calibdmin'] = 0.5
-                            Data['calibskip'] = 0
-                            Data['ellipses'] = []
-                            Data['calibrant'] = ''
-                            Data['GonioAngles'] = [0.,0.,0.]
-                            Data['DetDepthRef'] = False
-                        else:
-                            Data['type'] = 'PWDR'
-                            Data['color'] = 'Paired'
-                            Data['tilt'] = 0.0
-                            Data['rotation'] = 0.0
-                            Data['showLines'] = False
-                            Data['ring'] = []
-                            Data['rings'] = []
-                            Data['cutoff'] = 10
-                            Data['pixLimit'] = 20
-                            Data['calibdmin'] = 0.5
-                            Data['calibskip'] = 0
-                            Data['edgemin'] = 100000000
-                            Data['ellipses'] = []
-                            Data['GonioAngles'] = [0.,0.,0.]
-                            Data['DetDepth'] = 0.
-                            Data['DetDepthRef'] = False
-                            Data['calibrant'] = ''
-                            Data['IOtth'] = [2.0,5.0]
-                            Data['LRazimuth'] = [135,225]
-                            Data['azmthOff'] = 0.0
-                            Data['outChannels'] = 2500
-                            Data['outAzimuths'] = 1
-                            Data['centerAzm'] = False
-                            Data['fullIntegrate'] = False
-                            Data['setRings'] = False
-                            Data['background image'] = ['',-1.0]                            
-                            Data['dark image'] = ['',-1.0]
-                            Data['Flat Bkg'] = 0.0
-                        Data['setDefault'] = False
-                        Data['range'] = [(Imin,Imax),[Imin,Imax]]
-                        self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Image Controls'),Data)
-                        Masks = {'Points':[],'Rings':[],'Arcs':[],'Polygons':[],'Frames':[],'Thresholds':[(Imin,Imax),[Imin,Imax]]}
-                        self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Masks'),Masks)
-                        self.PatternTree.SetItemPyData(self.PatternTree.AppendItem(Id,text='Stress/Strain'),
-                            {'Type':'True','d-zero':[],'Sample phi':0.0,'Sample z':0.0,'Sample load':0.0})
-                        self.PatternTree.SetItemPyData(Id,[Npix,imagefile])
-                        self.PickId = Id
-                        self.PickIdText = self.GetTreeItemsList(self.PickId)
-                        self.Image = Id
-                os.chdir(dlg.GetDirectory())           # to get Mac/Linux to change directory!                
-                self.PatternTree.SelectItem(G2gd.GetPatternTreeItemId(self,Id,'Image Controls'))             #show last one
+                    G2IO.ReadLoadImage(imagefile,self)
+                os.chdir(dlg.GetDirectory())           # to get Mac/Linux to change directory!
+                self.PatternTree.SelectItem(G2gd.GetPatternTreeItemId(self,self.Image,'Image Controls'))             #show last image to be read
         finally:
             path = dlg.GetDirectory()           # to get Mac/Linux to change directory!
             os.chdir(path)
@@ -2415,7 +2477,6 @@ class GSASII(wx.Frame):
 
     def CheckNotebook(self):
         '''Make sure the data tree has the minimally expected controls.
-        (BHT) correct?
         '''
         if not G2gd.GetPatternTreeItemId(self,self.root,'Notebook'):
             sub = self.PatternTree.AppendItem(parent=self.root,text='Notebook')
@@ -2681,7 +2742,7 @@ class GSASII(wx.Frame):
                 Names.append(name)
                 if 'IMG' in name:
                     TextList.append([0.0,name])
-                    DataList.append(self.PatternTree.GetItemPyData(item))        #Size,Image
+                    DataList.append(self.PatternTree.GetImageLoc(item))        #Size,Image,Tag
                     Data = self.PatternTree.GetItemPyData(G2gd.GetPatternTreeItemId(self,item,'Image Controls'))
                 item, cookie = self.PatternTree.GetNextChild(self.root, cookie)
             if len(TextList) < 2:
@@ -2697,12 +2758,11 @@ class GSASII(wx.Frame):
                     Found = False
                     for i,item in enumerate(result[:-1]):
                         scale,name = item
-                        data = DataList[i]
                         if scale:
                             Found = True                                
                             Comments.append("%10.3f %s" % (scale,' * '+name))
-                            Npix,imagefile = data
-                            image = G2IO.GetImageData(self,imagefile,imageOnly=True)
+                            Npix,imagefile,imagetag = DataList[i]
+                            image = G2IO.GetImageData(self,imagefile,imageOnly=True,ImageTag=imagetag)
                             if First:
                                 newImage = np.zeros_like(image)
                                 First = False
@@ -2828,6 +2888,11 @@ class GSASII(wx.Frame):
                                     if item in refList:
                                         del(refList[item])
                             self.PatternTree.SetItemPyData(Id,refList)
+                        elif 'HKLF' in name:
+                            data = self.PatternTree.GetItemPyData(item)
+                            data[0] = {}
+                            self.PatternTree.SetItemPyData(item,data)
+                            
                         item, cookie = self.PatternTree.GetNextChild(self.root, cookie)
             finally:
                 dlg.Destroy()
@@ -2942,7 +3007,7 @@ class GSASII(wx.Frame):
                 if result == wx.ID_OK:
                     self.PatternTree.DeleteChildren(self.root)
                     self.GSASprojectfile = ''
-                    if self.HKL: self.HKL = []
+                    self.HKL = []
                     if self.G2plotNB.plotList:
                         self.G2plotNB.clear()
             finally:
@@ -3028,6 +3093,7 @@ class GSASII(wx.Frame):
         
         if self.GSASprojectfile: 
             self.PatternTree.SetItemText(self.root,'Loaded Data: '+self.GSASprojectfile)
+            self.CheckNotebook()
             G2IO.ProjFileSave(self)
         else:
             self.OnFileSaveas(event)
@@ -3044,6 +3110,7 @@ class GSASII(wx.Frame):
                 self.GSASprojectfile = G2IO.FileDlgFixExt(dlg,self.GSASprojectfile)
                 self.PatternTree.SetItemText(self.root,'Saving project as'+self.GSASprojectfile)
                 self.SetTitle("GSAS-II data tree: "+os.path.split(self.GSASprojectfile)[1])
+                self.CheckNotebook()
                 G2IO.ProjFileSave(self)
                 os.chdir(dlg.GetDirectory())           # to get Mac/Linux to change directory!
         finally:
@@ -3057,6 +3124,8 @@ class GSASII(wx.Frame):
         
     def OnFileExit(self, event):
         '''Called in response to the File/Quit menu button'''
+        if self.G2plotNB:
+            self.G2plotNB.Destroy()
         if self.dataFrame:
             self.dataFrame.Clear() 
             self.dataFrame.Destroy()
@@ -3075,25 +3144,34 @@ class GSASII(wx.Frame):
                     name = self.PatternTree.GetItemText(item)
                     if 'PWDR' in name:
                         item2, cookie2 = self.PatternTree.GetFirstChild(item)
+                        wave = 0.0
                         while item2:
                             name2 = self.PatternTree.GetItemText(item2)
-                            if name2 == 'Peak List':
+                            if name2 == 'Instrument Parameters':
+                                Inst = self.PatternTree.GetItemPyData(item2)[0]
+                                Type = Inst['Type'][0]
+                                if 'T' not in Type:
+                                    wave = G2mth.getWave(Inst)
+                            elif name2 == 'Peak List':
                                 peaks = self.PatternTree.GetItemPyData(item2)['peaks']
-                                file.write("%s \n" % (name+' Peak List'))
-                                if len(peaks[0]) == 8:
-                                    file.write('%10s %12s %10s %10s %10s\n'%('pos','int','sig','gam','FWHM'))
-                                else:
-                                    file.write('%10s %12s %10s %10s %10s %10s %10s\n'%('pos','int','alp','bet','sig','gam','FWHM'))                                    
-                                for peak in peaks:
-                                    if len(peak) == 8:  #CW
-                                        FWHM = G2pwd.getgamFW(peak[6],peak[4])
-                                        file.write("%10.5f %12.2f %10.5f %10.5f %10.5f \n" % \
-                                            (peak[0],peak[2],np.sqrt(max(0.0001,peak[4]))/100.,peak[6]/100.,FWHM/100.)) #convert to deg
-                                    else:               #TOF - more cols
-                                        FWHM = G2pwd.getgamFW(peak[10],peak[8])
-                                        file.write("%10.5f %12.2f %10.3f %10.3f %10.3f %10.3f %10.3f\n" % \
-                                            (peak[0],peak[2],peak[4],peak[6],peak[8],peak[10],FWHM))
                             item2, cookie2 = self.PatternTree.GetNextChild(item, cookie2)                            
+                        file.write("#%s \n" % (name+' Peak List'))
+                        if wave:
+                            file.write('#wavelength = %10.6f\n'%(wave))
+                        if 'T' in Type:
+                            file.write('#%9s %10s %12s %10s %10s %10s %10s %10s\n'%('pos','dsp','int','alp','bet','sig','gam','FWHM'))                                    
+                        else:
+                            file.write('#%9s %10s %12s %10s %10s %10s\n'%('pos','dsp','int','sig','gam','FWHM'))
+                        for peak in peaks:
+                            dsp = G2lat.Pos2dsp(Inst,peak[0])
+                            if 'T' in Type:  #TOF - more cols
+                                FWHM = 2.*G2pwd.getgamFW(peak[10],peak[8])      #to get delta-TOF from Gam(peak)
+                                file.write("%10.2f %10.5f %12.2f %10.3f %10.3f %10.3f %10.3f %10.3f\n" % \
+                                    (peak[0],dsp,peak[2],np.sqrt(max(0.0001,peak[4])),peak[6],peak[8],peak[10],FWHM))
+                            else:               #CW
+                                FWHM = 2.*G2pwd.getgamFW(peak[6],peak[4])      #to get delta-2-theta in deg. from Gam(peak)
+                                file.write("%10.3f %10.5f %12.2f %10.5f %10.5f %10.5f \n" % \
+                                    (peak[0],dsp,peak[2],np.sqrt(max(0.0001,peak[4]))/100.,peak[6]/100.,FWHM/100.)) #convert to deg
                     item, cookie = self.PatternTree.GetNextChild(self.root, cookie)                            
                 file.close()
         finally:
@@ -3125,13 +3203,13 @@ class GSASII(wx.Frame):
                                     else:                
                                         file.write('%s \n'%('   h   k   l   m    d-space   2-theta       wid        F**2'))
                                     for peak in peaks['RefList']:
-                                        FWHM = G2pwd.getgamFW(peak[7],peak[6])/50.      #to get delta-2-theta in deg.
+                                        FWHM = 2.*G2pwd.getgamFW(peak[7],peak[6])
                                         if 'T' in peaks.get('Type','PXC'):
                                             file.write(" %3d %3d %3d %3d %10.5f %10.2f %10.5f %10.3f \n" % \
                                                 (int(peak[0]),int(peak[1]),int(peak[2]),int(peak[3]),peak[4],peak[5],FWHM,peak[8]))
                                         else:
                                             file.write(" %3d %3d %3d %3d %10.5f %10.5f %10.5f %10.3f \n" % \
-                                                (int(peak[0]),int(peak[1]),int(peak[2]),int(peak[3]),peak[4],peak[5],FWHM,peak[8]))
+                                                (int(peak[0]),int(peak[1]),int(peak[2]),int(peak[3]),peak[4],peak[5],FWHM/100.,peak[8]))
                             item2, cookie2 = self.PatternTree.GetNextChild(item, cookie2)                            
                     item, cookie = self.PatternTree.GetNextChild(self.root, cookie)                            
                 file.close()
@@ -3482,7 +3560,6 @@ class GSASII(wx.Frame):
             else:
                 dlg.Destroy()
                 return
-
         self.OnFileSave(event)
         # check that constraints are OK here
         errmsg, warnmsg = G2stIO.ReadCheckConstraints(self.GSASprojectfile)
@@ -3526,28 +3603,16 @@ class GSASII(wx.Frame):
                 if dlg2.ShowModal() == wx.ID_OK:
                     Id = 0
                     self.PatternTree.DeleteChildren(self.root)
-                    if self.HKL: self.HKL = []
-                    if self.G2plotNB.plotList:
-                        self.G2plotNB.clear()
+                    self.HKL = []
                     G2IO.ProjFileOpen(self)
-                    item, cookie = self.PatternTree.GetFirstChild(self.root)
-                    while item and not Id:
-                        name = self.PatternTree.GetItemText(item)
-                        if name[:4] in ['PWDR','HKLF']:
-                            Id = item
-                        item, cookie = self.PatternTree.GetNextChild(self.root, cookie)                
-                    if Id:
-                        self.PickIdText = None  #force reload of PickId contents
-                        self.PatternTree.SelectItem(Id)
-                    if parentName:
-                        parentId = G2gd.GetPatternTreeItemId(self, self.root, parentName)
-                        if parentId:
-                            itemId = G2gd.GetPatternTreeItemId(self, parentId, oldName)
-                        else:
-                            itemId = G2gd.GetPatternTreeItemId(self, self.root, oldName)
-                        self.PatternTree.SelectItem(itemId)
-                    if 'Phases' in parentName:
-                        self.dataDisplay.SetSelection(tabId)
+                    Id =  self.root
+                    txt = None
+                    for txt in oldPath:
+                        Id = G2gd.GetPatternTreeItemId(self, Id, txt)
+                    self.PickIdText = None  #force reload of page
+                    self.PickId = Id
+                    self.PatternTree.SelectItem(Id)
+                    G2gd.MovePatternTreeToGrid(self,Id)
             finally:
                 dlg2.Destroy()
         else:
@@ -3596,7 +3661,7 @@ class GSASII(wx.Frame):
                     Id = 0
                     self.PickIdText = None  #force reload of PickId contents
                     self.PatternTree.DeleteChildren(self.root)
-                    if self.HKL: self.HKL = []
+                    if len(self.HKL): self.HKL = []
                     if self.G2plotNB.plotList:
                         self.G2plotNB.clear()
                     G2IO.ProjFileOpen(self)
@@ -3621,7 +3686,12 @@ class GSASII(wx.Frame):
         finally:
             dlg.Destroy()
         return result
-
+    
+    def OnSaveMultipleImg(self,event):
+        '''Select and save multiple image parameter and mask files
+        '''
+        G2IO.SaveMultipleImg(self)
+        
 class GSASIImain(wx.App):
     '''Defines a wxApp for GSAS-II
 
@@ -3630,9 +3700,10 @@ class GSASIImain(wx.App):
     '''
     def OnInit(self):
         '''Called automatically when the app is created.'''
+        import platform
         if '2.7' not in sys.version[:5]:
             dlg = wx.MessageDialog(None, 
-                'GSAS-II requires Python 2.7.x\n Yours is '+sys.version[:5],
+                'GSAS-II requires Python 2.7.x\n Yours is '+sys.version.split()[0],
                 'Python version error',  wx.OK)
             try:
                 result = dlg.ShowModal()
@@ -3642,6 +3713,34 @@ class GSASIImain(wx.App):
         self.main = GSASII(None)
         self.main.Show()
         self.SetTopWindow(self.main)
+        # save the current package versions
+        self.main.PackageVersions = []
+        self.main.PackageVersions.append(['Python',sys.version.split()[0]])
+        for p in (wx,mpl,np,sp,ogl):
+            self.main.PackageVersions.append([p.__name__,p.__version__])
+        try:
+            self.main.PackageVersions.append([Image.__name__,Image.VERSION])
+        except:
+            try:
+                from PIL import PILLOW_VERSION
+                self.main.PackageVersions.append([Image.__name__,PILLOW_VERSION])
+            except:
+                pass
+        self.main.PackageVersions.append([' Platform',sys.platform+' '+platform.architecture()[0]+' '+platform.machine()])
+        
+#        self.main.PackageVersions = {}
+#        self.main.PackageVersions['Python'] = sys.version.split()[0]
+#        for p in (wx,mpl,np,sp,ogl):
+#            self.main.PackageVersions[p.__name__] = p.__version__
+#        try:
+#            self.main.PackageVersions[Image.__name__] = Image.VERSION
+#        except:
+#            try:
+#                from PIL import PILLOW_VERSION
+#                self.main.PackageVersions[Image.__name__] = PILLOW_VERSION
+#            except:
+#                pass
+#        self.main.PackageVersions[' Platform'] = sys.platform+' '+platform.architecture()[0]+' '+platform.machine()
         # DEBUG: jump to sequential results
         #Id = G2gd.GetPatternTreeItemId(self.main,self.main.root,'Sequential results')
         #self.main.PatternTree.SelectItem(Id)
@@ -3658,7 +3757,7 @@ class GSASIImain(wx.App):
     #     # end PATCH
     #     self.main.OnFileOpen(None,filename)
     # removed because this gets triggered when a file is on the command line in canopy 1.4 -- not likely used anyway
-    
+       
 def main():
     '''Start up the GSAS-II application'''
     #application = GSASIImain() # don't redirect output, someday we
@@ -3674,7 +3773,7 @@ def main():
 if __name__ == '__main__':
     # print versions
     print "Python module versions loaded:"
-    print "python:     ",sys.version[:5]
+    print "python:     ",sys.version.split()[0]
     print "wxpython:   ",wx.__version__
     print "matplotlib: ",mpl.__version__
     print "numpy:      ",np.__version__
