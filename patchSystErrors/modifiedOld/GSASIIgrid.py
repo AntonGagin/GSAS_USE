@@ -2076,6 +2076,7 @@ def UpdateControls(G2frame,data):
     mainSizer.Add(AuthSizer())
     mainSizer.Add((5,5),0)
 
+
 # </ Anton Gagin               
    # additional controls in main Controls data tree entry 
     mainSizer.Add((10,10),0)
