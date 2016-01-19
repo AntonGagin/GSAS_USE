@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #GSASIIgrid - data display routines
 ########### SVN repository information ###################
-# $Date: 2015-06-04 14:49:58 -0400 (Thu, 04 Jun 2015) $
-# $Author: vondreele $
-# $Revision: 1878 $
-# $URL: https://subversion.xor.aps.anl.gov/pyGSAS/trunk/GSASIIgrid.py $
-# $Id: GSASIIgrid.py 1878 2015-06-04 18:49:58Z vondreele $
+# $Date: 2015-12-04 23:50:58 -0500 (Fri, 04 Dec 2015) $
+# $Author: toby $
+# $Revision: 2082 $
+# $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASIIgrid.py $
+# $Id: GSASIIgrid.py 2082 2015-12-05 04:50:58Z toby $
 ########### SVN repository information ###################
 '''
 *GSASIIgrid: Basic GUI routines*
@@ -29,7 +29,7 @@ import numpy as np
 import numpy.ma as ma
 import scipy.optimize as so
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 1878 $")
+GSASIIpath.SetVersionNumber("$Revision: 2082 $")
 import GSASIImath as G2mth
 import GSASIIIO as G2IO
 import GSASIIstrIO as G2stIO
@@ -59,8 +59,8 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 [ wxID_FOURCALC, wxID_FOURSEARCH, wxID_FOURCLEAR, wxID_PEAKSMOVE, wxID_PEAKSCLEAR, 
     wxID_CHARGEFLIP, wxID_PEAKSUNIQUE, wxID_PEAKSDELETE, wxID_PEAKSDA,
     wxID_PEAKSDISTVP, wxID_PEAKSVIEWPT, wxID_FINDEQVPEAKS,wxID_SHOWBONDS,wxID_MULTIMCSA,
-    wxID_SINGLEMCSA, wxID_4DMAPCOMPUTE,wxID_4DCHARGEFLIP,
-] = [wx.NewId() for item in range(17)]
+    wxID_SINGLEMCSA,wxID_4DCHARGEFLIP,
+] = [wx.NewId() for item in range(16)]
 
 # </ Anton Gagin 
 [ wxID_PWDRADD, wxID_HKLFADD, wxID_PWDANALYSIS, wxID_PWDEXPORTQQ, wxID_PWDCOPY, wxID_PLOTCTRLCOPY, 
@@ -68,11 +68,15 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 ] = [wx.NewId() for item in range(10)]
 # Anton Gagin />  
 
+[ wxID_PWDRADD, wxID_HKLFADD, wxID_PWDANALYSIS, wxID_PWDCOPY, wxID_PLOTCTRLCOPY, 
+    wxID_DATADELETE,wxID_DATACOPY,wxID_DATACOPYFLAGS,wxID_DATASELCOPY,
+] = [wx.NewId() for item in range(9)]
+
 [ wxID_ATOMSEDITADD, wxID_ATOMSEDITINSERT, wxID_ATOMSEDITDELETE, wxID_ATOMSREFINE, 
     wxID_ATOMSMODIFY, wxID_ATOMSTRANSFORM, wxID_ATOMSVIEWADD, wxID_ATOMVIEWINSERT,
     wxID_RELOADDRAWATOMS,wxID_ATOMSDISAGL,wxID_ATOMMOVE,wxID_MAKEMOLECULE,
-    wxID_ASSIGNATMS2RB,wxID_ATOMSPDISAGL, wxID_ISODISP,
-] = [wx.NewId() for item in range(15)]
+    wxID_ASSIGNATMS2RB,wxID_ATOMSPDISAGL, wxID_ISODISP,wxID_ADDHATOM,wxID_UPDATEHATOM,
+] = [wx.NewId() for item in range(17)]
 
 [ wxID_DRAWATOMSTYLE, wxID_DRAWATOMLABEL, wxID_DRAWATOMCOLOR, wxID_DRAWATOMRESETCOLOR, 
     wxID_DRAWVIEWPOINT, wxID_DRAWTRANSFORM, wxID_DRAWDELETE, wxID_DRAWFILLCELL, 
@@ -93,8 +97,8 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 ] = [wx.NewId() for item in range(3)]
 
 [ wxID_IMCALIBRATE,wxID_IMRECALIBRATE,wxID_IMINTEGRATE, wxID_IMCLEARCALIB,  
-    wxID_IMCOPYCONTROLS, wxID_INTEGRATEALL, wxID_IMSAVECONTROLS, wxID_IMLOADCONTROLS,
-] = [wx.NewId() for item in range(8)]
+    wxID_IMCOPYCONTROLS, wxID_INTEGRATEALL, wxID_IMSAVECONTROLS, wxID_IMLOADCONTROLS, wxID_IMAUTOINTEG,
+] = [wx.NewId() for item in range(9)]
 
 [ wxID_MASKCOPY, wxID_MASKSAVE, wxID_MASKLOAD, wxID_NEWMASKSPOT,wxID_NEWMASKARC,wxID_NEWMASKRING,
     wxID_NEWMASKFRAME, wxID_NEWMASKPOLY,  wxID_MASKLOADNOT,
@@ -106,8 +110,7 @@ WACV = wx.ALIGN_CENTER_VERTICAL
 
 [ wxID_BACKCOPY,wxID_LIMITCOPY, wxID_SAMPLECOPY, wxID_SAMPLECOPYSOME, wxID_BACKFLAGCOPY, wxID_SAMPLEFLAGCOPY,
     wxID_SAMPLESAVE, wxID_SAMPLELOAD,wxID_ADDEXCLREGION,wxID_SETSCALE,wxID_SAMPLE1VAL,wxID_ALLSAMPLELOAD,
-    wxID_PEAKSMOVE,
-] = [wx.NewId() for item in range(13)]
+] = [wx.NewId() for item in range(12)]
 
 [ wxID_INSTPRMRESET,wxID_CHANGEWAVETYPE,wxID_INSTCOPY, wxID_INSTFLAGCOPY, wxID_INSTLOAD,
     wxID_INSTSAVE, wxID_INST1VAL, wxID_INSTCALIB,
@@ -121,9 +124,9 @@ WACV = wx.ALIGN_CENTER_VERTICAL
     wxID_EXPORTCELLS,
 ] = [wx.NewId() for item in range(6)]
 
-[ wxID_CONSTRAINTADD,wxID_EQUIVADD,wxID_HOLDADD,wxID_FUNCTADD,
-  wxID_CONSPHASE, wxID_CONSHIST, wxID_CONSHAP, wxID_CONSGLOBAL,
-] = [wx.NewId() for item in range(8)]
+[ wxID_CONSTRAINTADD,wxID_EQUIVADD,wxID_HOLDADD,wxID_FUNCTADD,wxID_ADDRIDING,
+  wxID_CONSPHASE, wxID_CONSHIST, wxID_CONSHAP, wxID_CONSGLOBAL,wxID_EQUIVALANCEATOMS,
+] = [wx.NewId() for item in range(10)]
 
 [ wxID_RESTRAINTADD, wxID_RESTSELPHASE,wxID_RESTDELETE, wxID_RESRCHANGEVAL, 
     wxID_RESTCHANGEESD,wxID_AARESTRAINTADD,wxID_AARESTRAINTPLOT,
@@ -321,7 +324,119 @@ class SymOpDialog(wx.Dialog):
         parent = self.GetParent()
         parent.Raise()
         self.EndModal(wx.ID_CANCEL)
+        
+################################################################################
+class AddHatomDialog(wx.Dialog):
+    '''H atom addition dialog. After :meth:`ShowModal` returns, the results 
+    are found in dict :attr:`self.data`, which is accessed using :meth:`GetData`.
+    
+    :param wx.Frame parent: reference to parent frame (or None)
+    :param dict Neigh: a dict of atom names with list of atom name, dist pairs for neighboring atoms
+    :param dict phase: a dict containing the phase as defined by
+      :ref:`Phase Tree Item <Phase_table>`    
+    '''
+    def __init__(self,parent,Neigh,phase):
+        wx.Dialog.__init__(self,parent,wx.ID_ANY,'H atom add', 
+            pos=wx.DefaultPosition,style=wx.DEFAULT_DIALOG_STYLE)
+        self.panel = wxscroll.ScrolledPanel(self)         #just a dummy - gets destroyed in Draw!
+        self.Neigh = Neigh
+        self.phase = phase
+        self.Hatoms = []
+        self.Draw(self.Neigh,self.phase)
+            
+    def Draw(self,Neigh,phase):
+        '''Creates the contents of the dialog. Normally called
+        by :meth:`__init__`.
+        '''
+        def OnHSelect(event):
+            Obj = event.GetEventObject()
+            item,i = Indx[Obj.GetId()]
+            for obj in Indx[item]:
+                obj.SetValue(False)
+            Obj.SetValue(True)
+            self.Neigh[item][2] = i
+            
+        def OnBond(event):
+            Obj = event.GetEventObject()
+            inei,ibond = Indx[Obj.GetId()]
+            self.Neigh[inei][1][0][ibond][2] = Obj.GetValue()
+            
+        self.panel.Destroy()
+        self.panel = wxscroll.ScrolledPanel(self,style = wx.DEFAULT_DIALOG_STYLE)
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
+        mainSizer.Add(wx.StaticText(self.panel,-1,'H atom add controls for phase %s:'%(phase['General']['Name'])),
+            0,wx.LEFT|wx.TOP,10)
+        mainSizer.Add(wx.StaticText(self.panel,-1,'NB: Check selections as they may not be correct'),0,WACV|wx.LEFT,10)
+        mainSizer.Add(wx.StaticText(self.panel,-1," Atom:  Add # H's          Use: Neighbors, dist"),0,wx.TOP|wx.LEFT,5)
+        nHatms = ['0','1','2','3']
+        dataSizer = wx.FlexGridSizer(0,3,0,0)
+        Indx = {}
+        for inei,neigh in enumerate(Neigh):
+            dataSizer.Add(wx.StaticText(self.panel,-1,' %s:  '%(neigh[0])),0,WACV)
+            nH = 1      #for O atom
+            if 'C' in neigh[0] or 'N' in neigh[0]:
+                nH = 4-len(neigh[1][0])
+            checks = wx.BoxSizer(wx.HORIZONTAL)
+            Ids = []
+            for i in range(nH+1):
+                nHs = wx.CheckBox(self.panel,-1,label=nHatms[i])
+                if i == neigh[2]:
+                    nHs.SetValue(True)
+                Indx[nHs.GetId()] = [inei,i]
+                Ids.append(nHs)
+                nHs.Bind(wx.EVT_CHECKBOX, OnHSelect)
+                checks.Add(nHs,0,WACV)
+            Indx[inei] = Ids
+            dataSizer.Add(checks,0,WACV)
+            lineSizer = wx.BoxSizer(wx.HORIZONTAL)
+            for ib,bond in enumerate(neigh[1][0]):
+                Bond = wx.CheckBox(self.panel,-1,label=': %s, %.3f'%(bond[0],bond[1]))
+                Bond.SetValue(bond[2])
+                Indx[Bond.GetId()] = [inei,ib]
+                Bond.Bind(wx.EVT_CHECKBOX,OnBond)                
+                lineSizer.Add(Bond,0,WACV)                
+            dataSizer.Add(lineSizer,0,WACV|wx.RIGHT,10)
+        mainSizer.Add(dataSizer,0,wx.LEFT,5)
 
+        CancelBtn = wx.Button(self.panel,-1,'Cancel')
+        CancelBtn.Bind(wx.EVT_BUTTON, self.OnCancel)
+        OkBtn = wx.Button(self.panel,-1,'Ok')
+        OkBtn.Bind(wx.EVT_BUTTON, self.OnOk)
+        btnSizer = wx.BoxSizer(wx.HORIZONTAL)
+        btnSizer.Add((20,20),1)
+        btnSizer.Add(OkBtn)
+        btnSizer.Add((20,20),1)
+        btnSizer.Add(CancelBtn)
+        btnSizer.Add((20,20),1)
+        mainSizer.Add(btnSizer,0,wx.BOTTOM|wx.TOP, 10)
+        size = np.array(self.GetSize())
+        self.panel.SetupScrolling()
+        self.panel.SetSizer(mainSizer)
+        self.panel.SetAutoLayout(1)
+        size = [size[0]-5,size[1]-20]       #this fiddling is needed for older wx!
+        self.panel.SetSize(size)
+        
+    def GetData(self):
+        'Returns the values from the dialog'
+        for neigh in self.Neigh:
+            for ibond,bond in enumerate(neigh[1][0]):
+                if not bond[2]:
+                    neigh[1][1][1][ibond] = 0   #deselected bond
+            neigh[1][1][1] = [a for a in  neigh[1][1][1] if a]
+        return self.Neigh       #has #Hs to add for each entry
+        
+    def OnOk(self,event):
+        'Called when the OK button is pressed'
+        parent = self.GetParent()
+        parent.Raise()
+        self.EndModal(wx.ID_OK)              
+
+    def OnCancel(self,event):
+        parent = self.GetParent()
+        parent.Raise()
+        self.EndModal(wx.ID_CANCEL)
+
+################################################################################
 class DisAglDialog(wx.Dialog):
     '''Distance/Angle Controls input dialog. After
     :meth:`ShowModal` returns, the results are found in
@@ -336,11 +451,12 @@ class DisAglDialog(wx.Dialog):
     :param dict default:  A dict containing the default
       search ranges for each element.
     '''
-    def __init__(self,parent,data,default):
+    def __init__(self,parent,data,default,Reset=True):
         wx.Dialog.__init__(self,parent,wx.ID_ANY,
                            'Distance Angle Controls', 
             pos=wx.DefaultPosition,style=wx.DEFAULT_DIALOG_STYLE)
         self.default = default
+        self.Reset = Reset
         self.panel = wx.Panel(self)         #just a dummy - gets destroyed in Draw!
         self._default(data,self.default)
         self.Draw(self.data)
@@ -401,12 +517,13 @@ class DisAglDialog(wx.Dialog):
         
         OkBtn = wx.Button(self.panel,-1,"Ok")
         OkBtn.Bind(wx.EVT_BUTTON, self.OnOk)
-        ResetBtn = wx.Button(self.panel,-1,'Reset')
-        ResetBtn.Bind(wx.EVT_BUTTON, self.OnReset)
         btnSizer = wx.BoxSizer(wx.HORIZONTAL)
         btnSizer.Add((20,20),1)
         btnSizer.Add(OkBtn)
-        btnSizer.Add(ResetBtn)
+        if self.Reset:
+            ResetBtn = wx.Button(self.panel,-1,'Reset')
+            ResetBtn.Bind(wx.EVT_BUTTON, self.OnReset)
+            btnSizer.Add(ResetBtn)
         btnSizer.Add((20,20),1)
         mainSizer.Add(btnSizer,0,wx.EXPAND|wx.BOTTOM|wx.TOP, 10)
         self.panel.SetSizer(mainSizer)
@@ -624,6 +741,12 @@ class DataFrame(wx.Frame):
             help='Add constraint on parameter values')
         self.ConstraintEdit.Append(id=wxID_FUNCTADD, kind=wx.ITEM_NORMAL,text='Add New Var',
             help='Add variable composed of existing parameter')
+        self.ConstraintEdit.Append(id=wxID_EQUIVALANCEATOMS, kind=wx.ITEM_NORMAL,text='Add atom equivalence',
+            help='Add equivalences between atom parameter values')
+        self.ConstraintEdit.Enable(wxID_EQUIVALANCEATOMS,False)
+#        self.ConstraintEdit.Append(id=wxID_ADDRIDING, kind=wx.ITEM_NORMAL,text='Add H riding constraints',
+#            help='Add H atom riding constraints between atom parameter values')
+#        self.ConstraintEdit.Enable(wxID_ADDRIDING,False)
         self.PostfillDataMenu()
 
         # item = self.ConstraintEdit.Append(id=wx.ID_ANY,kind=wx.ITEM_NORMAL,text='Update GUI')
@@ -743,7 +866,7 @@ class DataFrame(wx.Frame):
 # </ Anton Gagin             
         self.ErrorAnal.Append(id=wxID_PWDEXPORTQQ,kind=wx.ITEM_NORMAL,text='Export QQ-plot as text',
             help='Save data for QQ-plot as a text file')    
-# Anton Gagin />  
+# Anton Gagin />              
         self.ErrorAnal.Append(id=wxID_PWDCOPY,kind=wx.ITEM_NORMAL,text='Copy params',
             help='Copy of PWDR parameters')
         self.ErrorAnal.Append(id=wxID_PLOTCTRLCOPY,kind=wx.ITEM_NORMAL,text='Copy plot controls',
@@ -788,7 +911,25 @@ class DataFrame(wx.Frame):
             help='Copy background refinement flags to other histograms')
         self.BackEdit.Append(id=wxID_PEAKSMOVE, kind=wx.ITEM_NORMAL,text='Move peaks',
             help='Move background peaks to Peak List')
-            
+        self.BackFixed = wx.Menu(title='') # fixed background point menu
+        self.BackMenu.Append(menu=self.BackFixed, title='Fixed Points')
+        self.wxID_BackPts = {}
+        self.wxID_BackPts['Add'] = wx.NewId() # N.B. not using wxID_ global as for other menu items
+        self.BackFixed.Append(id=self.wxID_BackPts['Add'], kind=wx.ITEM_RADIO,text='Add',
+            help='Add fixed background points with mouse clicks')
+        self.wxID_BackPts['Move'] = wx.NewId() 
+        item = self.BackFixed.Append(id=self.wxID_BackPts['Move'], kind=wx.ITEM_RADIO,text='Move',
+            help='Move selected fixed background points with mouse drags')
+        item.Check(True)
+        self.wxID_BackPts['Del'] = wx.NewId()
+        self.BackFixed.Append(id=self.wxID_BackPts['Del'], kind=wx.ITEM_RADIO,text='Delete',
+            help='Delete fixed background points with mouse clicks')
+        self.wxID_BackPts['Clear'] = wx.NewId() 
+        self.BackFixed.Append(id=self.wxID_BackPts['Clear'], kind=wx.ITEM_NORMAL,text='Clear',
+            help='Clear fixed background points')
+        self.wxID_BackPts['Fit'] = wx.NewId() 
+        self.BackFixed.Append(id=self.wxID_BackPts['Fit'], kind=wx.ITEM_NORMAL,text='Fit background',
+            help='Fit background function to fixed background points')
         self.PostfillDataMenu()
             
         # PDR / Instrument Parameters
@@ -981,6 +1122,8 @@ class DataFrame(wx.Frame):
             id=wxID_IMSAVECONTROLS, kind=wx.ITEM_NORMAL,text='Save Controls')
         self.ImageEdit.Append(help='Load image controls from file', 
             id=wxID_IMLOADCONTROLS, kind=wx.ITEM_NORMAL,text='Load Controls')
+        self.ImageEdit.Append(help='Open Auto-integration window to integrate a series of images', 
+            id=wxID_IMAUTOINTEG, kind=wx.ITEM_NORMAL,text='Auto Integrate')
         self.PostfillDataMenu()
             
         # IMG / Masks
@@ -1116,6 +1259,10 @@ class DataFrame(wx.Frame):
             help='Select atom row to insert before; inserted as an H atom')
         self.AtomEdit.Append(id=wxID_ATOMVIEWINSERT, kind=wx.ITEM_NORMAL,text='Insert view point',
             help='Select atom row to insert before; inserted as an H atom')
+        self.AtomEdit.Append(id=wxID_ADDHATOM, kind=wx.ITEM_NORMAL,text='Insert H atoms',
+            help='Insert H atoms in standard positions bonded to selected atoms')
+        self.AtomEdit.Append(id=wxID_UPDATEHATOM, kind=wx.ITEM_NORMAL,text='Update H atoms',
+            help='Update H atoms in standard positions')
         self.AtomEdit.Append(id=wxID_ATOMMOVE, kind=wx.ITEM_NORMAL,text='Move atom to view point',
             help='Select single atom to move')
         self.AtomEdit.Append(id=wxID_ATOMSEDITDELETE, kind=wx.ITEM_NORMAL,text='Delete atom',
@@ -1162,9 +1309,6 @@ class DataFrame(wx.Frame):
         self.PrefillDataMenu(self.WavesData,helpType='Wave Data', helpLbl='Imcommensurate wave data')
         self.WavesData.Append(menu=wx.Menu(title=''),title='Select tab')
         self.WavesDataCompute = wx.Menu(title='')
-        self.WavesData.Append(menu=self.WavesDataCompute,title='Compute')
-        self.WavesDataCompute.Append(id=wxID_4DMAPCOMPUTE, kind=wx.ITEM_NORMAL,text='Compute 4D map',
-            help='Compute 4-dimensional map')
         self.PostfillDataMenu()
                  
         # Phase / Draw Options tab
@@ -1453,8 +1597,9 @@ def UpdateControls(G2frame,data):
     if 'nIterMCMC' not in data:
         data['nIterMCMC'] = str(0)  
         
-# Anton Gagin />  
-     
+# Anton Gagin />          
+    if 'HatomFix' not in data:
+        data['HatomFix'] = False
     
     #end patch
 
@@ -1544,6 +1689,9 @@ def UpdateControls(G2frame,data):
             
         def OnFsqRef(event):
             data['F**2'] = fsqRef.GetValue()
+            
+        def OnHatomFix(event):
+            data['HatomFix'] = Hfix.GetValue()
         
         def OnUsrRej(event):
             Obj = event.GetEventObject()
@@ -1572,7 +1720,7 @@ def UpdateControls(G2frame,data):
         Indx = {}
         if 'Hessian' in data['deriv type']:
             LSSizer.Add(wx.StaticText(G2frame.dataDisplay,label=' Max cycles: '),0,WACV)
-            Choice = ['0','1','2','3','5','10','15','20', '30', '40', '50', '75', '100']
+            Choice = ['0','1','2','3','5','10','15','20']
             maxCyc = wx.ComboBox(parent=G2frame.dataDisplay,value=str(data['max cyc']),choices=Choice,
                 style=wx.CB_READONLY|wx.CB_DROPDOWN)
             maxCyc.SetValue(str(data['max cyc']))
@@ -1602,8 +1750,13 @@ def UpdateControls(G2frame,data):
                 usrrej.Bind(wx.EVT_TEXT_ENTER,OnUsrRej)
                 usrrej.Bind(wx.EVT_KILL_FOCUS,OnUsrRej)
                 LSSizer.Add(usrrej,0,WACV)
+#        Hfix = wx.CheckBox(G2frame.dataDisplay,-1,label='Regularize H atoms? ')
+#        Hfix.SetValue(data['HatomFix'])
+#        Hfix.Bind(wx.EVT_CHECKBOX,OnHatomFix)
+#        LSSizer.Add(Hfix,0,WACV)   #for now
         return LSSizer
-        
+
+
 # </ Anton Gagin            
     def MargMultSizer():
 # additional controls in main Controls data tree entry: multiplicative factor
@@ -1889,6 +2042,7 @@ def UpdateControls(G2frame,data):
         
 # Anton Gagin />       
         
+        
     def AuthSizer():
 
         def OnAuthor(event):
@@ -1921,7 +2075,6 @@ def UpdateControls(G2frame,data):
     mainSizer.Add((5,5),0)
     mainSizer.Add(AuthSizer())
     mainSizer.Add((5,5),0)
-        
 
 # </ Anton Gagin               
    # additional controls in main Controls data tree entry 
@@ -1951,6 +2104,7 @@ def UpdateControls(G2frame,data):
     
     
 # Anton Gagin />    
+    
     mainSizer.Layout()    
     G2frame.dataDisplay.SetSizer(mainSizer)
     G2frame.dataDisplay.SetSize(mainSizer.Fit(G2frame.dataFrame))
@@ -2070,7 +2224,6 @@ def UpdateSeqResults(G2frame,data,prevSize=None):
                 'Select columns',
                 'No columns or rows selected in table. Click on row or column labels to select fields for plotting.'
                 )
-
                 
     def OnAveSelSeq(event):
         'average the selected columns from menu command'
@@ -3052,11 +3205,11 @@ def UpdatePWHKPlot(G2frame,kind,item):
         FoMax = np.max(refList.T[8+Super])
         Hmin = np.array([int(np.min(refList.T[0])),int(np.min(refList.T[1])),int(np.min(refList.T[2]))])
         Hmax = np.array([int(np.max(refList.T[0])),int(np.max(refList.T[1])),int(np.max(refList.T[2]))])
-        Vpoint = [int(np.mean(refList.T[0])),int(np.mean(refList.T[1])),int(np.mean(refList.T[2]))]
-        controls = {'Type' : 'Fosq','Iscale' : False,'HKLmax' : Hmax,'HKLmin' : Hmin,
+        Vpoint = np.array([int(np.mean(refList.T[0])),int(np.mean(refList.T[1])),int(np.mean(refList.T[2]))])
+        controls = {'Type' : 'Fosq','Iscale' : False,'HKLmax' : Hmax,'HKLmin' : Hmin,'Zone':False,'viewKey':'L',
             'FoMax' : FoMax,'Scale' : 1.0,'Drawing':{'viewPoint':[Vpoint,[]],'default':Vpoint[:],
-            'backColor':[0,0,0],'depthFog':False,'Zclip':10.0,'cameraPos':10.,'Zstep':0.05,
-            'Scale':1.0,'oldxy':[],'viewDir':[1,0,0]},'Super':Super,'SuperVec':SuperVec}
+            'backColor':[0,0,0],'depthFog':False,'Zclip':10.0,'cameraPos':10.,'Zstep':0.05,'viewUp':[0,1,0],
+            'Scale':1.0,'oldxy':[],'viewDir':[0,0,1]},'Super':Super,'SuperVec':SuperVec}
         G2plt.Plot3DSngl(G2frame,newPlot=True,Data=controls,hklRef=refList,Title=phaseName)
         
     def OnPlotAll3DHKL(event):
@@ -3083,9 +3236,9 @@ def UpdatePWHKPlot(G2frame,kind,item):
         Hmin = np.array([int(np.min(refList.T[0])),int(np.min(refList.T[1])),int(np.min(refList.T[2]))])
         Hmax = np.array([int(np.max(refList.T[0])),int(np.max(refList.T[1])),int(np.max(refList.T[2]))])
         Vpoint = [int(np.mean(refList.T[0])),int(np.mean(refList.T[1])),int(np.mean(refList.T[2]))]
-        controls = {'Type' : 'Fosq','Iscale' : False,'HKLmax' : Hmax,'HKLmin' : Hmin,
+        controls = {'Type' : 'Fosq','Iscale' : False,'HKLmax' : Hmax,'HKLmin' : Hmin,'Zone':False,'viewKey':'L',
             'FoMax' : FoMax,'Scale' : 1.0,'Drawing':{'viewPoint':[Vpoint,[]],'default':Vpoint[:],
-            'backColor':[0,0,0],'depthFog':False,'Zclip':10.0,'cameraPos':10.,'Zstep':0.05,
+            'backColor':[0,0,0],'depthFog':False,'Zclip':10.0,'cameraPos':10.,'Zstep':0.05,'viewUp':[0,1,0],
             'Scale':1.0,'oldxy':[],'viewDir':[1,0,0]},'Super':Super,'SuperVec':SuperVec}
         G2plt.Plot3DSngl(G2frame,newPlot=True,Data=controls,hklRef=refList,Title=phaseName)
         
@@ -3098,6 +3251,7 @@ def UpdatePWHKPlot(G2frame,kind,item):
         G2plt.ExportDeltSig(G2frame,kind)
 # Anton Gagin />  
 
+        
     def OnWtFactor(event):
         try:
             val = float(wtval.GetValue())
@@ -3105,6 +3259,9 @@ def UpdatePWHKPlot(G2frame,kind,item):
             val = data[0]['wtFactor']
         data[0]['wtFactor'] = val
         wtval.SetValue('%.3f'%(val))
+        
+    def OnCompression(event):
+        data[0] = int(comp.GetValue())
         
     def onCopyPlotCtrls(event):
         '''Respond to menu item to copy multiple sections from a histogram.
@@ -3122,6 +3279,8 @@ def UpdatePWHKPlot(G2frame,kind,item):
 #patches
     if 'wtFactor' not in data[0]:
         data[0] = {'wtFactor':1.0}
+#    if kind == 'PWDR' and 'Compression' not in data[0]:
+#        data[0]['Compression'] = 1
     #if isinstance(data[1],list) and kind == 'HKLF':
     if 'list' in str(type(data[1])) and kind == 'HKLF':
         RefData = {'RefList':[],'FF':[]}
@@ -3138,7 +3297,7 @@ def UpdatePWHKPlot(G2frame,kind,item):
         G2frame.dataFrame.Bind(wx.EVT_MENU, OnErrorAnalysis, id=wxID_PWDANALYSIS)
 # </ Anton Gagin
         G2frame.dataFrame.Bind(wx.EVT_MENU, OnExportQQ, id=wxID_PWDEXPORTQQ)
-# Anton Gagin />          
+# Anton Gagin />            
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopySelectedItems, id=wxID_PWDCOPY)
         G2frame.dataFrame.Bind(wx.EVT_MENU, onCopyPlotCtrls, id=wxID_PLOTCTRLCOPY)
     elif kind in ['HKLF',]:
@@ -3157,6 +3316,14 @@ def UpdatePWHKPlot(G2frame,kind,item):
     wtval.Bind(wx.EVT_TEXT_ENTER,OnWtFactor)
     wtval.Bind(wx.EVT_KILL_FOCUS,OnWtFactor)
     wtSizer.Add(wtval,0,WACV)
+#    if kind == 'PWDR':         #possible future compression feature; NB above patch as well
+#        wtSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,' Compression factor: '),0,WACV)
+#        choice = ['1','2','3','4','5','6']
+#        comp = wx.ComboBox(parent=G2frame.dataDisplay,choices=choice,
+#            style=wx.CB_READONLY|wx.CB_DROPDOWN)
+#        comp.SetValue(str(data[0]['Compression']))
+#        comp.Bind(wx.EVT_COMBOBOX, OnCompression)
+#        wtSizer.Add(comp,0,WACV)
     mainSizer.Add(wtSizer)
     if data[0].get('Dummy'):
         simSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -3179,13 +3346,22 @@ def UpdatePWHKPlot(G2frame,kind,item):
             ' Data residual wR: %.3f%% on %d observations'%(data[0]['wR'],data[0]['Nobs'])))
         for value in data[0]:
             if 'Nref' in value:
-                mainSizer.Add((5,5),)
                 pfx = value.split('Nref')[0]
                 name = data[0].get(pfx.split(':')[0]+'::Name','?')
-                mainSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,' For phase '+name+':'))
-                mainSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,
-                    u' Unweighted phase residuals RF\u00b2: %.3f%%, RF: %.3f%% on %d reflections  '% \
-                    (data[0][pfx+'Rf^2'],data[0][pfx+'Rf'],data[0][value])))
+                if 'SS' in value:
+                    mainSizer.Add((5,5),)
+                    mainSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,' For incommensurate phase '+name+':'))
+                    for m,(Rf2,Rf,Nobs) in enumerate(zip(data[0][pfx+'Rf^2'],data[0][pfx+'Rf'],data[0][value])):
+                        mainSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,
+                            u' m = +/- %d: RF\u00b2: %.3f%%, RF: %.3f%% on %d reflections  '% \
+                            (m,Rf2,Rf,Nobs)))
+                else:
+                    mainSizer.Add((5,5),)
+                    mainSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,' For phase '+name+':'))
+                    mainSizer.Add(wx.StaticText(G2frame.dataDisplay,-1,
+                        u' Unweighted phase residuals RF\u00b2: %.3f%%, RF: %.3f%% on %d reflections  '% \
+                        (data[0][pfx+'Rf^2'],data[0][pfx+'Rf'],data[0][value])))
+                    
     mainSizer.Add((5,5),)
     mainSizer.Layout()    
     G2frame.dataDisplay.SetSizer(mainSizer)
@@ -3194,7 +3370,12 @@ def UpdatePWHKPlot(G2frame,kind,item):
     G2frame.dataFrame.setSizePosLeft(Size)
     G2frame.PatternTree.SetItemPyData(item,data)
     if kind in ['PWDR','SASD']:
-        G2plt.PlotPatterns(G2frame,plotType=kind,newPlot=True)
+        if 'xylim' in dir(G2frame):
+            NewPlot = False
+        else:
+
+            NewPlot = True
+        G2plt.PlotPatterns(G2frame,plotType=kind,newPlot=NewPlot)
     elif kind == 'HKLF':
         Name = G2frame.PatternTree.GetItemText(item)
         phaseName = G2pdG.IsHistogramInAnyPhase(G2frame,Name)
@@ -3232,7 +3413,12 @@ def UpdatePWHKPlot(G2frame,kind,item):
 ################################################################################           
        
 def GetPatternTreeDataNames(G2frame,dataTypes):
-    '''Needs a doc string
+    '''Finds all items in tree that match a 4 character prefix
+    
+    :param wx.Frame G2frame: Data tree frame object
+    :param list dataTypes: Contains one or more data tree item types to be matched
+      such as ['IMG '] or ['PWDR','HKLF']
+    :returns: a list of tree item names for the matching items  
     '''
     names = []
     item, cookie = G2frame.PatternTree.GetFirstChild(G2frame.root)        
@@ -3350,7 +3536,7 @@ def MovePatternTreeToGrid(G2frame,item):
         elif 'IMG' in G2frame.PatternTree.GetItemText(item):
             G2frame.Image = item
             G2frame.dataFrame.SetTitle('Image Data')
-            data = G2frame.PatternTree.GetItemPyData(GetPatternTreeItemId( \
+            data = G2frame.PatternTree.GetItemPyData(GetPatternTreeItemId(
                 G2frame,item,'Image Controls'))
             G2imG.UpdateImageData(G2frame,data)
             G2plt.PlotImage(G2frame,newPlot=True)
@@ -3410,18 +3596,18 @@ def MovePatternTreeToGrid(G2frame,item):
             GetPatternTreeItemId(G2frame,G2frame.Image, 'Masks'))
         data = G2frame.PatternTree.GetItemPyData(item)
         G2imG.UpdateImageControls(G2frame,data,masks)
-        G2plt.PlotImage(G2frame)
+        G2plt.PlotImage(G2frame,newPlot=True)
     elif G2frame.PatternTree.GetItemText(item) == 'Masks':
         G2frame.dataFrame.SetTitle('Masks')
         G2frame.Image = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(item)
         G2imG.UpdateMasks(G2frame,data)
-        G2plt.PlotImage(G2frame)
+        G2plt.PlotImage(G2frame,newPlot=True)
     elif G2frame.PatternTree.GetItemText(item) == 'Stress/Strain':
         G2frame.dataFrame.SetTitle('Stress/Strain')
         G2frame.Image = G2frame.PatternTree.GetItemParent(item)
         data = G2frame.PatternTree.GetItemPyData(item)
-        G2plt.PlotImage(G2frame)
+        G2plt.PlotImage(G2frame,newPlot=True)
         G2plt.PlotStrain(G2frame,data,newPlot=True)
         G2imG.UpdateStressStrain(G2frame,data)
     elif G2frame.PatternTree.GetItemText(item) == 'PDF Controls':
