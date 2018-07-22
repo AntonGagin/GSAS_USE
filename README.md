@@ -54,6 +54,7 @@ To update patch, run **\_\_update\_patch\_\_.py**.
 
 
 ##<a name="usage"></a> Usage
+
 After the patch has been  applied, start *GSAS-II* normally. In **Controls** menu specify the correction parameters. If several histograms are refined simultaneously, list these parameters, separated by commas, in the order corresponding to the order of the histograms (it may not correspond to their order on the data tree). If you wish to the same value of the parameter for all histograms, enter a single number. Set $E\_mu$, $E\_beta$ or $s$ to zero, if you do not want to apply a particular correction (multiplicative, additive, or peak-shape.) 
 
 If you select *Estimate optimal k\_mu?*, the *Prior factor k\_mu* field will be set to ```optimal```.  The same is true for the *Estimate optimal k\_beta?* and *Prior factor k\_beta* fields.  Deselecting *Estimate optimal k?* will restore the previous value in *Prior factor k*.
@@ -111,6 +112,7 @@ The second Bayesian-corrected fit is prone to overfitting because it uses the sa
 Results of the MCMC sampler will be saved in a text file and as a plot in a project folder. Prior to using this feature make sure that [*emcee*](http://dan.iel.fm/emcee/current/user/install/) and [*triangle_plot*](https://github.com/dfm/triangle.py) libraries are installed.
   
 ## <a name="example"></a>Example
+
 * [Download](https://subversion.xray.aps.anl.gov/pyGSAS/trunk/help/gsasII.html#Tutorials) the example files for a 'Combined X-ray/CW-neutron refinement of PbSO4' from the *GSAS-II* tutorial. Perform the refinements as described in the [tutorial](https://subversion.xray.aps.anl.gov/pyGSAS/Tutorials/CWCombined/Combined%20refinement.htm).
 * Deselect all the refinable parameters except for the structural variables which include 3 lattice parameters, 11 sets of atomic coordinates, and 5 isotropic atomic displacement parameters. MAKE SURE to deselect **Background** and **Histogram scale factor**!
 * For this example we want to correct all three types of errors. Set the *Number of knots E\_mu* to
