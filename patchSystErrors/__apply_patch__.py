@@ -1,5 +1,5 @@
 #! python
-#vesrion 1.1-4
+#vesrion 1.1-0
 
 import os
 import sys
@@ -32,13 +32,12 @@ print '''
 '''
 print "\n--------------------------"
 
-print "This script will patch your current version of the GSAS-II package. Please make sure that your are patching original version of GSAS-II. \n"
+print "This script will patch your current version of the GSAS-II package \n"
 begin = raw_input("Begin [y/n]?") 
 
 if begin=='y':
     fnames = ['GSASIIstrMain.py', 'GSASIIstrMath.py', 'GSASIIobj.py', \
-              'GSASIImath.py', 'GSASIIgrid.py', 'GSASII.py', 'GSASIIplot.py', \
-              'config_example.py']   
+              'GSASIImath.py', 'GSASIIdataGUI.py', 'config_example.py']   
     fnames0 = ['../'+name for name in fnames]
     fnames1 = ['originalOld/'+name for name in fnames]
     fnames2 = ['modifiedOld/'+name for name in fnames]
