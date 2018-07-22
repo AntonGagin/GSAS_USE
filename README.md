@@ -10,7 +10,7 @@ This is an extension to the  *[GSAS-II](https://subversion.xor.aps.anl.gov/trac/
 
 *GSAS_USE* addresses the effects of systematic errors in Rietveld refinements. The errors are categorized into multiplicative, additive, and peak-shape types. Corrections for these errors are incorporated into using a Bayesian statistics approach, with the corrections themselves treated as nuisance parameters and marginalized out of the analysis. Structural parameters refined using the proposed method represent probability-weighted averages over all possible error corrections. See [Gagin, A. & Levin, I. (2015). *Accounting for Unknown Systematic Errors in Rietveld Refinements: A Bayesian Statistics Approach.* *J. Appl. Cryst*. **48**, 1201-1211](http://journals.iucr.org/j/issues/2015/04/00/po5042/stdsup.html) for details.
 
-The current version has been tested with *GSAS-II* version 0.2.0, revision 1970.  
+The current version has been tested with *GSAS-II* version 1.0.0, revision 3420.  
 For details of the *GSAS-II* package, refer to [Toby, B. H. & Von Dreele, R. B. (2013). *J. Appl. Cryst*. **46**, 544-549](http://onlinelibrary.wiley.com/doi/10.1107/S0021889813003531/abstract), or visit their [website](https://subversion.xor.aps.anl.gov/trac/pyGSAS).
 
 ***
