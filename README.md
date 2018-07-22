@@ -29,7 +29,7 @@ To apply this patch, place the ***patchSystErrors*** folder in your *GSAS-II* lo
 ```r
 execfile('__apply_patch__.py')
 ```
-in a python command line interpreter. If everything works correctly, the following message will be displayed 
+in a python command line interpreter from *GSAS-II* local folder. If everything works correctly, the following message will be displayed 
 
 ```r
 ### based on Diff, Match and Patch Library
