@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #GSASIImath - major mathematics routines
 ########### SVN repository information ###################
-# $Date: 2015-12-11 14:34:43 -0500 (Fri, 11 Dec 2015) $
+# $Date: 2018-06-14 01:48:33 +0300 (Thu, 14 Jun 2018) $
 # $Author: vondreele $
-# $Revision: 2089 $
+# $Revision: 3434 $
 # $URL: https://subversion.xray.aps.anl.gov/pyGSAS/trunk/GSASIImath.py $
-# $Id: GSASIImath.py 2089 2015-12-11 19:34:43Z vondreele $
+# $Id: GSASIImath.py 3434 2018-06-13 22:48:33Z vondreele $
 ########### SVN repository information ###################
 '''
 *GSASIImath: computation module*
@@ -14,28 +14,26 @@
 Routines for least-squares minimization and other stuff
 
 '''
-import sys
-import os
-import os.path as ospath
+from __future__ import division, print_function
 import random as rn
 import numpy as np
 import numpy.linalg as nl
 import numpy.ma as ma
-import cPickle
 import time
 import math
 import copy
 import GSASIIpath
-GSASIIpath.SetVersionNumber("$Revision: 2089 $")
+GSASIIpath.SetVersionNumber("$Revision: 3434 $")
 import GSASIIElem as G2el
 import GSASIIlattice as G2lat
 import GSASIIspc as G2spc
 import GSASIIpwd as G2pwd
 import numpy.fft as fft
 import scipy.optimize as so
-import pypowder as pwd
-if GSASIIpath.GetConfigValue('debug'):
-    import pylab as pl
+try:
+    import pypowder as pwd
+except ImportError:
+    print ('pypowder is not available - profile calcs. not allowed')
 
 sind = lambda x: np.sin(x*np.pi/180.)
 cosd = lambda x: np.cos(x*np.pi/180.)
@@ -83,7 +81,7 @@ def blockMult(dictA, B):
                     x0 += sBlock[iHist][0]
                 else:
                     for iBlock in range(nBlocks[iHist]):
-                        x1 += sBlock[iHist][iBlock]                      
+                        x1 += sBlock[iHist][iBlock]				
                         res = np.concatenate((res, np.dot(A[iHist][iBlock], B[x0:x1])))             
                         x0 += sBlock[iHist][iBlock]
         else:      
@@ -96,7 +94,7 @@ def blockMult(dictA, B):
                     else:
                         res = np.concatenate((res, B[x0:x1, range(m)]))
                     x0 += sBlock[iHist][0]
-                else:               
+                else:       			
                     for iBlock in range(nBlocks[iHist]):
                         x1 += sBlock[iHist][iBlock]
                         if (iBlock==0 and iHist==0):
@@ -204,7 +202,7 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
     lamMax = lam
     nfev = 0
     if Print:
-        print ' Marginalized refinement on %d variables:'%(n)
+        print(' Marginalized refinement on %d variables:'%(n))
     Lam = np.zeros((n,n))
 
     while icycle < maxcyc:       
@@ -237,7 +235,7 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
             try:
                 Xvec = nl.solve(Amatlam,Yvec)
             except nl.LinAlgError:
-                print 'ouch #1'
+                print('ouch #1')
                 psing = list(np.where(np.diag(nl.qr(Amatlam)[1]) < 1.e-14)[0])
                 return [x0,None,{'num cyc':icycle,'fvec':dY,'nfev':nfev,'lamMax':lamMax,'psing':psing, 'rssCor':chisq1}]
             Xvec /= Adiag
@@ -257,16 +255,16 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
                 lam /= 10.
                 break
             if lam > 10.e5:
-                print 'ouch #3 chisq1 ',chisq1,' stuck > chisq0 ',chisq0
+                print('ouch #3 chisq1 ',chisq1,' stuck > chisq0 ',chisq0)
                 break
         lamMax = max(lamMax,lam)
         deltaChi2 = (chisq0-chisq1)/chisq0
         if Print:
-            print ' Cycle: %d, Time: %.2fs, Chi**2: %.10g, Lambda: %.3g,  Delta: %.10g'%(
-                icycle,time.time()-time0,chisq1,lam,deltaChi2)
+            print(' Cycle: %d, Time: %.2fs, Chi**2: %.10g, Lambda: %.3g,  Delta: %.10g'%(
+                icycle,time.time()-time0,chisq1,lam,deltaChi2))
         if deltaChi2 < ftol:
             ifConverged = True
-            if Print: print "converged"
+            if Print: print("converged")
             break
         icycle += 1
     if optCor=={}:
@@ -290,7 +288,7 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
         Bmat = nl.inv(Amatlam)/Anorm  #*(One+Lam)      #don't rescale Bmat to Marquardt array
         return [x0,Bmat,{'num cyc':icycle,'fvec':dY,'nfev':nfev,'lamMax':lamMax,'psing':[], 'Converged': ifConverged, 'DelChi2':deltaChi2, 'rssCor':chisq1}]
     except nl.LinAlgError:
-        print 'ouch #2 linear algebra error in making v-cov matrix'
+        print('ouch #2 linear algebra error in making v-cov matrix')
         psing = []
         if maxcyc:
             psing = list(np.where(np.diag(nl.qr(Amat)[1]) < 1.e-14)[0])
@@ -300,8 +298,7 @@ def MarginalizedLSQ(func, x0, Jac, peakCor, multCor, addCor,  optCor={}, args=()
 ##########################################################
 ##########################################################
 
-def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(), 
-                     nwalkers=50, nIter=100, Print=False, fname='MCMC.txt', varyList='vars'):
+def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(), nwalkers=50, nIter=100, Print=False):
 
     import emcee
     
@@ -323,39 +320,15 @@ def MarginalizedMCMC(func, x0, x0sig, peakCor, multCor, addCor, args=(),
             p0[i][j] = (2.*p0[i][j]-1.)*x0sig[j] + x0[j]
     
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[peakCor, multCor, addCor, args])
-    
-    t1 = time.time()
-    p0, prob, state = sampler.run_mcmc(p0, 10)
-    t2 = time.time()
-    print 'Fitting will take approximately', round((t2-t1)/60,1)*nIter/10, 'minutes! \n'
-    sampler.reset()
-    
-    
-    chain = np.zeros( (nwalkers, nIter, ndim) )
-    probs = np.zeros( (nwalkers, nIter) )
-    lastsave = time.time()
-    index = 0
-    progress=0
-    for i, (iPos, iProb, iState) in enumerate(sampler.sample(p0, iterations=nIter)):
-        percent = int(100 * i / nIter)
-        if(percent % 5 == 0): 
-            if(percent!=progress): print("Progress: {0:.0f} percent of the steps".format(percent))
-            progress = percent     
-        chain[:, index, :] = iPos
-        probs[:, index] = iProb
-        index += 1
-        if time.time() - lastsave > 60*60:
-            lastsave = time.time()
-            chain_tmp = chain[:, :index, :]
-            probs_tmp = probs[:, :index]
-            np.savetxt(fname, chain_tmp.reshape((-1, ndim)), header=str(varyList))
-            np.savetxt("probs.txt", probs_tmp.reshape((-1, 1)))
-             
- #   sampler.run_mcmc(p0, nIter, rstate0=state)  
- #   print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
- #   print("Autocorrelation time:", sampler.get_autocorr_time())
 
-    return [chain, probs]    
+    pos, prob, state = sampler.run_mcmc(p0, 10)
+    sampler.reset()
+    sampler.run_mcmc(pos, nIter, rstate0=state)
+        
+    print("Mean acceptance fraction:", np.mean(sampler.acceptance_fraction))
+    print("Autocorrelation time:", sampler.get_autocorr_time())
+
+    return sampler    
 
 
 
@@ -395,22 +368,68 @@ def StandardMCMC(func, x0, x0sig, args=(), nwalkers=50, nIter=100, Print=False):
         
         
 # Anton Gagin />   
+
+        
+
     
 ################################################################################
 ##### Hessian least-squares Levenberg-Marquardt routine
 ################################################################################
 
-def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Print=False):
+def pinv(a, rcond=1e-15 ):
+    """
+    Compute the (Moore-Penrose) pseudo-inverse of a matrix.
+    Modified from numpy.linalg.pinv; assumes a is Hessian & returns no. zeros found
+    Calculate the generalized inverse of a matrix using its
+    singular-value decomposition (SVD) and including all
+    *large* singular values.
+
+    :param array a: (M, M) array_like - here assumed to be LS Hessian
+      Matrix to be pseudo-inverted.
+    :param float rcond: Cutoff for small singular values.
+      Singular values smaller (in modulus) than
+      `rcond` * largest_singular_value (again, in modulus)
+      are set to zero.
+
+    :returns: B : (M, M) ndarray
+      The pseudo-inverse of `a`
+
+    Raises: LinAlgError
+      If the SVD computation does not converge.
+
+    Notes: 
+      The pseudo-inverse of a matrix A, denoted :math:`A^+`, is
+      defined as: "the matrix that 'solves' [the least-squares problem]
+      :math:`Ax = b`," i.e., if :math:`\\bar{x}` is said solution, then
+      :math:`A^+` is that matrix such that :math:`\\bar{x} = A^+b`.
+
+    It can be shown that if :math:`Q_1 \\Sigma Q_2^T = A` is the singular
+    value decomposition of A, then
+    :math:`A^+ = Q_2 \\Sigma^+ Q_1^T`, where :math:`Q_{1,2}` are
+    orthogonal matrices, :math:`\\Sigma` is a diagonal matrix consisting
+    of A's so-called singular values, (followed, typically, by
+    zeros), and then :math:`\\Sigma^+` is simply the diagonal matrix
+    consisting of the reciprocals of A's singular values
+    (again, followed by zeros). [1]
+
+    References: 
+    .. [1] G. Strang, *Linear Algebra and Its Applications*, 2nd Ed., Orlando, FL, Academic Press, Inc., 1980, pp. 139-142.
+
+    """
+    u, s, vt = nl.svd(a, 0)
+    cutoff = rcond*np.maximum.reduce(s)
+    s = np.where(s>cutoff,1./s,0.)
+    nzero = s.shape[0]-np.count_nonzero(s)
+#    res = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis], np.transpose(u)))
+    res = np.dot(vt.T,s[:,nxs]*u.T)
+    return res,nzero
+
+def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.e-6, maxcyc=0,lamda=-3,Print=False):
     
     """
     Minimize the sum of squares of a function (:math:`f`) evaluated on a series of
-    values (y): :math:`\sum_{y=0}^{N_{obs}} f(y,{args})`
-    
-    ::
-    
-                    Nobs
-        x = arg min(sum(func(y)**2,axis=0))
-                    y=0
+    values (y): :math:`\sum_{y=0}^{N_{obs}} f(y,{args})`    
+    where :math:`x = arg min(\sum_{y=0}^{N_{obs}} (func(y)^2,axis=0))`
 
     :param function func: callable method or function
         should take at least one (possibly length N vector) argument and
@@ -421,9 +440,10 @@ def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Pr
         It must be a symmetric NxN array
     :param tuple args: Any extra arguments to func are placed in this tuple.
     :param float ftol: Relative error desired in the sum of squares.
-    :param float xtol: Relative error desired in the approximate solution.
+    :param float xtol: Relative tolerance of zeros in the SVD solution in nl.pinv.
     :param int maxcyc: The maximum number of cycles of refinement to execute, if -1 refine 
         until other limits are met (ftol, xtol)
+    :param int lamda: initial Marquardt lambda=10**lamda 
     :param bool Print: True for printing results (residuals & times) by cycle
 
     :returns: (x,cov_x,infodict) where
@@ -446,6 +466,7 @@ def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Pr
          * 'nfev':
          * 'lamMax':
          * 'psing':
+         * 'SVD0':
             
     """
                 
@@ -458,12 +479,141 @@ def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Pr
         
     icycle = 0
     One = np.ones((n,n))
-    lam = 0.001
+    lam = 10.**lamda
     lamMax = lam
     nfev = 0
     if Print:
-        print ' Hessian refinement on %d variables:'%(n)
+        print (' Hessian Levenburg-Marquardt SVD refinement on %d variables:'%(n))
     Lam = np.zeros((n,n))
+    while icycle < maxcyc:
+        time0 = time.time()
+        M = func(x0,*args)
+        Nobs = len(M)
+        nfev += 1
+        chisq0 = np.sum(M**2)
+        Yvec,Amat = Hess(x0,*args)
+        Adiag = np.sqrt(np.diag(Amat))
+        psing = np.where(np.abs(Adiag) < 1.e-14,True,False)
+        if np.any(psing):                #hard singularity in matrix
+            return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':psing,'SVD0':-1}]
+        Anorm = np.outer(Adiag,Adiag)
+        Yvec /= Adiag
+        Amat /= Anorm
+        if Print:
+            print ('initial chi^2 %.5g on %d obs.'%(chisq0,Nobs))
+        chitol = ftol
+        while True:
+            Lam = np.eye(Amat.shape[0])*lam
+            Amatlam = Amat*(One+Lam)
+            try:
+                Ainv,Nzeros = pinv(Amatlam,xtol)    #do Moore-Penrose inversion (via SVD)
+            except nl.LinAlgError:
+                print ('ouch #1 bad SVD inversion; change parameterization')
+                psing = list(np.where(np.diag(nl.qr(Amatlam)[1]) < 1.e-14)[0])
+                return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':psing,'SVD0':-1}]
+            Xvec = np.inner(Ainv,Yvec)      #solve
+            Xvec /= Adiag
+            M2 = func(x0+Xvec,*args)
+            nfev += 1
+            chisq1 = np.sum(M2**2)
+            if chisq1 > chisq0*(1.+chitol):     #TODO put Alan Coehlo's criteria for lambda here?
+                lam *= 10.
+                if Print:
+                    print ('new chi^2 %.5g on %d obs., %d SVD zeros ; matrix modification needed; lambda now %.1e'  \
+                           %(chisq1,Nobs,Nzeros,lam))
+            else:
+                x0 += Xvec
+                lam /= 10.
+                break
+            if lam > 10.:
+                print ('ouch #3 chisq1 %g.4 stuck > chisq0 %g.4'%(chisq1,chisq0))
+                break
+            chitol *= 2
+        lamMax = max(lamMax,lam)
+        deltaChi2 = (chisq0-chisq1)/chisq0
+        if Print:
+            print (' Cycle: %d, Time: %.2fs, Chi**2: %.5g for %d obs., Lambda: %.3g,  Delta: %.3g'%(
+                icycle,time.time()-time0,chisq1,Nobs,lamMax,deltaChi2))
+        if deltaChi2 < ftol:
+            ifConverged = True
+            if Print: print ("converged")
+            break
+        icycle += 1
+    M = func(x0,*args)
+    nfev += 1
+    Yvec,Amat = Hess(x0,*args)
+    Adiag = np.sqrt(np.diag(Amat))
+    Anorm = np.outer(Adiag,Adiag)
+    Lam = np.eye(Amat.shape[0])*lam
+    Amatlam = Amat/Anorm        
+    try:
+        Bmat,Nzero = pinv(Amatlam,xtol)    #Moore-Penrose inversion (via SVD) & count of zeros
+        if Print: print ('Found %d SVD zeros'%(Nzero))
+        Bmat = Bmat/Anorm
+        return [x0,Bmat,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':[],'SVD0':Nzero,'Converged': ifConverged, 'DelChi2':deltaChi2}]
+    except nl.LinAlgError:
+        print ('ouch #2 linear algebra error in making v-cov matrix')
+        psing = []
+        if maxcyc:
+            psing = list(np.where(np.diag(nl.qr(Amat)[1]) < 1.e-14)[0])
+        return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':psing,'SVD0':-1}]          
+            
+def HessianSVD(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.e-6, maxcyc=0,lamda=-3,Print=False):
+    
+    """
+    Minimize the sum of squares of a function (:math:`f`) evaluated on a series of
+    values (y): :math:`\sum_{y=0}^{N_{obs}} f(y,{args})`    
+    where :math:`x = arg min(\sum_{y=0}^{N_{obs}} (func(y)^2,axis=0))`
+
+    :param function func: callable method or function
+        should take at least one (possibly length N vector) argument and
+        returns M floating point numbers.
+    :param np.ndarray x0: The starting estimate for the minimization of length N
+    :param function Hess: callable method or function
+        A required function or method to compute the weighted vector and Hessian for func.
+        It must be a symmetric NxN array
+    :param tuple args: Any extra arguments to func are placed in this tuple.
+    :param float ftol: Relative error desired in the sum of squares.
+    :param float xtol: Relative tolerance of zeros in the SVD solution in nl.pinv.
+    :param int maxcyc: The maximum number of cycles of refinement to execute, if -1 refine 
+        until other limits are met (ftol, xtol)
+    :param bool Print: True for printing results (residuals & times) by cycle
+
+    :returns: (x,cov_x,infodict) where
+
+      * x : ndarray
+        The solution (or the result of the last iteration for an unsuccessful
+        call).
+      * cov_x : ndarray
+        Uses the fjac and ipvt optional outputs to construct an
+        estimate of the jacobian around the solution.  ``None`` if a
+        singular matrix encountered (indicates very flat curvature in
+        some direction).  This matrix must be multiplied by the
+        residual standard deviation to get the covariance of the
+        parameter estimates -- see curve_fit.
+      * infodict : dict
+        a dictionary of optional outputs with the keys:
+
+         * 'fvec' : the function evaluated at the output
+         * 'num cyc':
+         * 'nfev':
+         * 'lamMax':0.
+         * 'psing':
+         * 'SVD0':
+            
+    """
+                
+    ifConverged = False
+    deltaChi2 = -10.
+    x0 = np.array(x0, ndmin=1)      #might be redundant?
+    n = len(x0)
+    if type(args) != type(()):
+        args = (args,)
+        
+    icycle = 0
+    nfev = 0
+    if Print:
+        print (' Hessian SVD refinement on %d variables:'%(n))
     while icycle < maxcyc:
         time0 = time.time()
         M = func(x0,*args)
@@ -473,42 +623,30 @@ def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Pr
         Adiag = np.sqrt(np.diag(Amat))
         psing = np.where(np.abs(Adiag) < 1.e-14,True,False)
         if np.any(psing):                #hard singularity in matrix
-            return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':psing}]
+            return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':0.,'psing':psing,'SVD0':-1}]
         Anorm = np.outer(Adiag,Adiag)
         Yvec /= Adiag
         Amat /= Anorm
-        while True:
-            Lam = np.eye(Amat.shape[0])*lam
-            Amatlam = Amat*(One+Lam)
-            try:
-                Xvec = nl.solve(Amatlam,Yvec)
-            except nl.LinAlgError:
-                print 'ouch #1'
-                psing = list(np.where(np.diag(nl.qr(Amatlam)[1]) < 1.e-14)[0])
-                return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':psing}]
-            Xvec /= Adiag
-            M2 = func(x0+Xvec,*args)
-            nfev += 1
-            chisq1 = np.sum(M2**2)
-            if chisq1 > chisq0*(1.+ftol):
-                lam *= 10.
-                if Print:
-                    print 'matrix modification needed; lambda now %.1e'%(lam)
-            else:
-                x0 += Xvec
-                lam /= 10.
-                break
-            if lam > 10.e5:
-                print 'ouch #3 chisq1 ',chisq1,' stuck > chisq0 ',chisq0
-                break
-        lamMax = max(lamMax,lam)
+        if Print:
+            print ('initial chi^2 %.5g'%(chisq0))
+        try:
+            Ainv,Nzeros = pinv(Amat,xtol)    #do Moore-Penrose inversion (via SVD)
+        except nl.LinAlgError:
+            print ('ouch #1 bad SVD inversion; change parameterization')
+            psing = list(np.where(np.diag(nl.qr(Amat)[1]) < 1.e-14)[0])
+            return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':0.,'psing':psing,'SVD0':-1}]
+        Xvec = np.inner(Ainv,Yvec)      #solve
+        Xvec /= Adiag
+        M2 = func(x0+Xvec,*args)
+        nfev += 1
+        chisq1 = np.sum(M2**2)
         deltaChi2 = (chisq0-chisq1)/chisq0
         if Print:
-            print ' Cycle: %d, Time: %.2fs, Chi**2: %.5g, Lambda: %.3g,  Delta: %.3g'%(
-                icycle,time.time()-time0,chisq1,lam,deltaChi2)
+            print (' Cycle: %d, Time: %.2fs, Chi**2: %.5g, Delta: %.3g'%(
+                icycle,time.time()-time0,chisq1,deltaChi2))
         if deltaChi2 < ftol:
             ifConverged = True
-            if Print: print "converged"
+            if Print: print ("converged")
             break
         icycle += 1
     M = func(x0,*args)
@@ -516,18 +654,21 @@ def HessianLSQ(func,x0,Hess,args=(),ftol=1.49012e-8,xtol=1.49012e-8, maxcyc=0,Pr
     Yvec,Amat = Hess(x0,*args)
     Adiag = np.sqrt(np.diag(Amat))
     Anorm = np.outer(Adiag,Adiag)
-    Lam = np.eye(Amat.shape[0])*lam
-    Amatlam = Amat/Anorm  #*(One+Lam)              #don't scale Amat to Marquardt array        
+    Amat = Amat/Anorm        
     try:
-        Bmat = nl.inv(Amatlam)/Anorm  #*(One+Lam)      #don't rescale Bmat to Marquardt array
-        return [x0,Bmat,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':[], 'Converged': ifConverged, 'DelChi2':deltaChi2}]
+        Bmat,Nzero = pinv(Amat,xtol)    #Moore-Penrose inversion (via SVD) & count of zeros
+        print ('Found %d SVD zeros'%(Nzero))
+#        Bmat = nl.inv(Amatlam); Nzeros = 0
+        Bmat = Bmat/Anorm
+        return [x0,Bmat,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':0.,'psing':[],
+            'SVD0':Nzero,'Converged': ifConverged, 'DelChi2':deltaChi2}]
     except nl.LinAlgError:
-        print 'ouch #2 linear algebra error in making v-cov matrix'
+        print ('ouch #2 linear algebra error in making v-cov matrix')
         psing = []
         if maxcyc:
             psing = list(np.where(np.diag(nl.qr(Amat)[1]) < 1.e-14)[0])
-        return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':lamMax,'psing':psing}]
-   
+        return [x0,None,{'num cyc':icycle,'fvec':M,'nfev':nfev,'lamMax':0.,'psing':psing,'SVD0':-1}]          
+            
 def getVCov(varyNames,varyList,covMatrix):
     '''obtain variance-covariance terms for a set of variables. NB: the varyList 
     and covMatrix were saved by the last least squares refinement so they must match.
@@ -561,7 +702,6 @@ def getVCov(varyNames,varyList,covMatrix):
 def FindMolecule(ind,generalData,atomData):                    #uses numpy & masks - very fast even for proteins!
 
     def getNeighbors(atom,radius):
-        neighList = []  
         Dx = UAtoms-np.array(atom[cx:cx+3])
         dist = ma.masked_less(np.sqrt(np.sum(np.inner(Amat,Dx)**2,axis=0)),0.5) #gets rid of disorder "bonds" < 0.5A
         sumR = Radii+radius
@@ -625,8 +765,8 @@ def FindMolecule(ind,generalData,atomData):                    #uses numpy & mas
             continue
         while True:
             try:
-                jndb = Indb.index(indb)
-                Indb.remove(jndb)
+                jndb = IndB.index(indb)
+                IndB.remove(jndb)
             except:
                 break
         newAtom = copy.copy(atomData[Indx[indb]])
@@ -728,7 +868,64 @@ def GetAtomCoordsByID(pId,parmDict,AtLookup,indx):
         dnames = [dpfx[i]+str(AtLookup[ind]) for i in range(3)]
         XYZ.append([parmDict[name]+parmDict[dname] for name,dname in zip(names,dnames)])
     return XYZ
+    
+def GetAtomFracByID(pId,parmDict,AtLookup,indx):
+    '''default doc string
+    
+    :param type name: description
+    
+    :returns: type name: description
+    
+    '''
+    pfx = str(pId)+'::Afrac:'
+    Frac = []
+    for ind in indx:
+        name = pfx+str(AtLookup[ind])
+        Frac.append(parmDict[name])
+    return Frac
+    
+#    for Atom in Atoms:
+#        XYZ = Atom[cx:cx+3]
+#        if 'A' in Atom[cia]:
+#            U6 = Atom[cia+2:cia+8]
+    
 
+def ApplySeqData(data,seqData):
+    '''Applies result from seq. refinement to drawing atom positions & Uijs
+    '''
+    generalData = data['General']
+    SGData = generalData['SGData']
+    cx,ct,cs,cia = generalData['AtomPtrs']
+    drawingData = data['Drawing']
+    dcx,dct,dcs,dci = drawingData['atomPtrs']
+    atoms = data['Atoms']
+    drawAtoms = drawingData['Atoms']
+    pId = data['pId']
+    pfx = '%d::'%(pId)
+    parmDict = seqData['parmDict']
+    for ia,atom in enumerate(atoms):
+        dxyz = np.array([parmDict[pfx+'dAx:'+str(ia)],parmDict[pfx+'dAy:'+str(ia)],parmDict[pfx+'dAz:'+str(ia)]])
+        if atom[cia] == 'A':
+            atuij = np.array([parmDict[pfx+'AU11:'+str(ia)],parmDict[pfx+'AU22:'+str(ia)],parmDict[pfx+'AU33:'+str(ia)],
+                parmDict[pfx+'AU12:'+str(ia)],parmDict[pfx+'AU13:'+str(ia)],parmDict[pfx+'AU23:'+str(ia)]])
+        else:
+            atuiso = parmDict[pfx+'AUiso:'+str(ia)]
+        atxyz = G2spc.MoveToUnitCell(np.array(atom[cx:cx+3])+dxyz)[0]
+        indx = FindAtomIndexByIDs(drawAtoms,dci,[atom[cia+8],],True)
+        for ind in indx:
+            drawatom = drawAtoms[ind]
+            opr = drawatom[dcs-1]
+            #how do I handle Sfrac? - fade the atoms?
+            if atom[cia] == 'A':                    
+                X,U = G2spc.ApplyStringOps(opr,SGData,atxyz,atuij)
+                drawatom[dcx:dcx+3] = X
+                drawatom[dci-6:dci] = U
+            else:
+                X = G2spc.ApplyStringOps(opr,SGData,atxyz)
+                drawatom[dcx:dcx+3] = X
+                drawatom[dci-7] = atuiso
+    return drawAtoms
+    
 def FindNeighbors(phase,FrstName,AtNames,notName=''):
     General = phase['General']
     cx,ct,cs,cia = General['AtomPtrs']
@@ -758,6 +955,61 @@ def FindNeighbors(phase,FrstName,AtNames,notName=''):
                 Ids.append(Atoms[j][cia+8])
     return Neigh,[OId,Ids]
     
+def FindAllNeighbors(phase,FrstName,AtNames,notName=''):
+    General = phase['General']
+    cx,ct,cs,cia = General['AtomPtrs']
+    Atoms = phase['Atoms']
+    atNames = [atom[ct-1] for atom in Atoms]
+    Cell = General['Cell'][1:7]
+    Amat,Bmat = G2lat.cell2AB(Cell)
+    SGData = General['SGData']
+    indices = (-1,0,1)
+    Units = np.array([[h,k,l] for h in indices for k in indices for l in indices])
+    atTypes = General['AtomTypes']
+    Radii = np.array(General['BondRadii'])
+    DisAglCtls = General['DisAglCtls']    
+    radiusFactor = DisAglCtls['Factors'][0]
+    AtInfo = dict(zip(atTypes,Radii)) #or General['BondRadii']
+    Orig = atNames.index(FrstName)
+    OId = Atoms[Orig][cia+8]
+    OType = Atoms[Orig][ct]
+    XYZ = getAtomXYZ(Atoms,cx)        
+    Oxyz = XYZ[Orig]
+    Neigh = []
+    Ids = []
+    sumR = np.array([AtInfo[OType]+AtInfo[atom[ct]] for atom in Atoms])
+    sumR = np.reshape(np.tile(sumR,27),(27,-1))
+    results = []
+    for xyz in XYZ:
+        results.append(G2spc.GenAtom(xyz,SGData,False,Move=False))
+    for iA,result in enumerate(results):
+        if iA != Orig:                
+            for [Txyz,Top,Tunit,Spn] in result:
+                Dx = np.array([Txyz-Oxyz+unit for unit in Units])
+                dx = np.inner(Dx,Amat)
+                dist = np.sqrt(np.sum(dx**2,axis=1))
+                IndB = ma.nonzero(ma.masked_greater(dist-radiusFactor*sumR[:,iA],0.))
+        #        GSASIIpath.IPyBreak()
+                for iU in IndB[0]:
+                    if AtNames[iA] != notName:
+                        unit = Units[iU]
+                        if np.any(unit):
+                            Topstr = ' +(%4d)[%2d,%2d,%2d]'%(Top,unit[0],unit[1],unit[2])
+                        else:
+                            Topstr = ' +(%4d)'%(Top)
+                        Neigh.append([AtNames[iA]+Topstr,dist[iU]])
+                        Ids.append(Atoms[iA][cia+8])
+    return Neigh,[OId,Ids]
+    
+def calcBond(A,Ax,Bx,MTCU):
+    cell = G2lat.A2cell(A)
+    Amat,Bmat = G2lat.cell2AB(cell)
+    M,T,C,U = MTCU
+    Btx = np.inner(M,Bx)+T+C+U
+    Dx = Btx-Ax
+    dist = np.sqrt(np.inner(Amat,Dx))
+    return dist
+    
 def AddHydrogens(AtLookUp,General,Atoms,AddHydId):
     
     def getTransMat(RXYZ,OXYZ,TXYZ,Amat):
@@ -781,7 +1033,6 @@ def AddHydrogens(AtLookUp,General,Atoms,AddHydId):
     Uiso = max(Uiso,0.005)                      #set floor!
     Tatoms = GetAtomsById(Atoms,AtLookUp,AddHydId[1])
     TXYZ = np.array([tatom[cx:cx+3] for tatom in Tatoms]) #3 x xyz
-    DX = np.inner(Amat,TXYZ-OXYZ).T
     if nBonds == 4:
         if AddHydId[-1] == 1:
             Vec = TXYZ-OXYZ
@@ -856,18 +1107,18 @@ def AddHydrogens(AtLookUp,General,Atoms,AddHydId):
             return [Hpos[imax],],[HU,]
     return [],[]
         
-def AtomUij2TLS(atomData,atPtrs,Amat,Bmat,rbObj):   #unfinished & not used
-    '''default doc string
-    
-    :param type name: description
-    
-    :returns: type name: description
-    
-    '''
-    for atom in atomData:
-        XYZ = np.inner(Amat,atom[cx:cx+3])
-        if atom[cia] == 'A':
-            UIJ = atom[cia+2:cia+8]
+#def AtomUij2TLS(atomData,atPtrs,Amat,Bmat,rbObj):   #unfinished & not used
+#    '''default doc string
+#    
+#    :param type name: description
+#    
+#    :returns: type name: description
+#    
+#    '''
+#    for atom in atomData:
+#        XYZ = np.inner(Amat,atom[cx:cx+3])
+#        if atom[cia] == 'A':
+#            UIJ = atom[cia+2:cia+8]
                 
 def TLS2Uij(xyz,g,Amat,rbObj):    #not used anywhere, but could be?
     '''default doc string
@@ -919,7 +1170,7 @@ def AtomTLS2UIJ(atomData,atPtrs,Amat,rbObj):    #not used anywhere, but could be
     for atom in atomData:
         XYZ = np.inner(Amat,atom[cx:cx+3])
         Axyz = np.array([ 0,XYZ[2],-XYZ[1], -XYZ[2],0,XYZ[0], XYZ[1],-XYZ[0],0],ndmin=2 )
-        if 'U' in TSLtype:
+        if 'U' in TLStype:
             atom[cia+1] = TLS[0]
             atom[cia] = 'I'
         else:
@@ -952,6 +1203,26 @@ def getAtomXYZ(atoms,cx):
         XYZ.append(atom[cx:cx+3])
     return np.array(XYZ)
 
+def getRBTransMat(X,Y):
+    '''Get transformation for Cartesian axes given 2 vectors
+    X will  be parallel to new X-axis; X cross Y will be new Z-axis & 
+    (X cross Y) cross Y will be new Y-axis
+    Useful for rigid body axes definintion
+    
+    :param array X: normalized vector
+    :param array Y: normalized vector
+    
+    :returns: array M: transformation matrix
+    
+    use as XYZ' = np.inner(M,XYZ) where XYZ are Cartesian
+    
+    '''
+    Mat2 = np.cross(X,Y)      #UxV-->Z
+    Mat2 /= np.sqrt(np.sum(Mat2**2))
+    Mat3 = np.cross(Mat2,X)        #(UxV)xU-->Y
+    Mat3 /= np.sqrt(np.sum(Mat3**2))
+    return np.array([X,Mat3,Mat2])        
+                
 def RotateRBXYZ(Bmat,Cart,oriQ):
     '''rotate & transform cartesian coordinates to crystallographic ones
     no translation applied. To be used for numerical derivatives 
@@ -1166,6 +1437,27 @@ def getWave(Parms):
     except KeyError:
         return Parms['Lam1'][1]
         
+def getMeanWave(Parms):
+    '''returns mean wavelength from Instrument parameters dictionary
+    
+    :param dict Parms: Instrument parameters;
+        must contain:
+        Lam: single wavelength
+        or
+        Lam1,Lam2: Ka1,Ka2 radiation wavelength
+        I(L2)/I(L1): Ka2/Ka1 ratio
+    
+    :returns: float wave: mean wavelength
+    
+    '''
+    try:
+        return Parms['Lam'][1]
+    except KeyError:
+        meanLam = (Parms['Lam1'][1]+Parms['I(L2)/I(L1)'][1]*Parms['Lam2'][1])/   \
+            (1.+Parms['I(L2)/I(L1)'][1])
+        return meanLam
+    
+        
 def El2Mass(Elements):
     '''compute molecular weight from Elements 
     
@@ -1239,19 +1531,63 @@ def XScattDen(Elements,vol,wave=0.):
     :returns: float rho: scattering density in 10^10cm^-2; 
         if wave > 0 the includes f' contribution
     :returns: float mu: if wave>0 absorption coeff in cm^-1 ; otherwise 0
+    :returns: float fpp: if wave>0 f" in 10^10cm^-2; otherwise 0
     
     '''
     rho = 0
     mu = 0
-    if wave:
+    fpp = 0
+    if wave: 
         Xanom = XAnomAbs(Elements,wave)
     for El in Elements:
         f0 = Elements[El]['Z']
         if wave:
             f0 += Xanom[El][0]
+            fpp += Xanom[El][1]*Elements[El]['Num']
             mu += Xanom[El][2]*Elements[El]['Num']
         rho += Elements[El]['Num']*f0
-    return 28.179*rho/vol,0.1*mu/vol
+    return 28.179*rho/vol,0.1*mu/vol,28.179*fpp/vol
+    
+def NCScattDen(Elements,vol,wave=0.):
+    '''Estimate neutron scattering density from molecular formula & volume;
+    ignores valence, but includes anomalous effects
+    
+    :param dict Elements: elements in molecular formula; 
+        each element must contain 
+        Num: number of atoms in formula
+        Z: atomic number
+    :param float vol: molecular volume in A^3
+    :param float wave: optional wavelength in A
+    
+    :returns: float rho: scattering density in 10^10cm^-2; 
+        if wave > 0 the includes f' contribution
+    :returns: float mu: if wave>0 absorption coeff in cm^-1 ; otherwise 0
+    :returns: float fpp: if wave>0 f" in 10^10cm^-2; otherwise 0
+    
+    '''
+    rho = 0
+    mu = 0
+    bpp = 0
+    for El in Elements:
+        isotope = Elements[El]['Isotope']
+        b0 = Elements[El]['Isotopes'][isotope]['SL'][0]
+        mu += Elements[El]['Isotopes'][isotope].get('SA',0.)*Elements[El]['Num']
+        if wave and 'BW-LS' in Elements[El]['Isotopes'][isotope]:
+            Re,Im,E0,gam,A,E1,B,E2 = Elements[El]['Isotopes'][isotope]['BW-LS'][1:]
+            Emev = 81.80703/wave**2
+            T0 = Emev-E0
+            T1 = Emev-E1
+            T2 = Emev-E2
+            D0 = T0**2+gam**2
+            D1 = T1**2+gam**2
+            D2 = T2**2+gam**2
+            b0 += Re*(T0/D0+A*T1/D1+B*T2/D2)
+            bpp += Im*(1/D0+A/D1+B/D2)
+        else:
+            bpp += Elements[El]['Isotopes'][isotope]['SL'][1]
+        rho += Elements[El]['Num']*b0
+    if wave: mu *= wave
+    return 100.*rho/vol,mu/vol,100.*bpp/vol
     
 def wavekE(wavekE):
     '''Convert wavelength to energy & vise versa
@@ -1269,18 +1605,20 @@ def XAnomAbs(Elements,wave):
     for El in Elements:
         Orbs = G2el.GetXsectionCoeff(El)
         Xanom[El] = G2el.FPcalc(Orbs, kE)
-    return Xanom
+    return Xanom        #f',f", mu
     
 ################################################################################
 #### Modulation math
 ################################################################################
 
-def makeWaves(waveTypes,FSSdata,XSSdata,USSdata,Mast):
+def makeWaves(waveTypes,FSSdata,XSSdata,USSdata,MSSdata,Mast):
     '''
     waveTypes: array nAtoms: 'Fourier','ZigZag' or 'Block'
     FSSdata: array 2 x atoms x waves    (sin,cos terms)
     XSSdata: array 2x3 x atoms X waves (sin,cos terms)
     USSdata: array 2x6 x atoms X waves (sin,cos terms)
+    MSSdata: array 2x3 x atoms X waves (sin,cos terms)
+    
     Mast: array orthogonalization matrix for Uij
     '''
     ngl = 32
@@ -1330,8 +1668,8 @@ def makeWaves(waveTypes,FSSdata,XSSdata,USSdata,Mast):
         Umod = np.swapaxes(np.sum(UmodA+UmodB,axis=1),1,3)      #atoms x 3x3 x ngl; sum waves
     else:
         Umod = 1.0
-#    GSASIIpath.IPyBreak()
-    return ngl,nWaves,Fmod,Xmod,Umod,glTau,glWt
+    Mmod = 1.0
+    return ngl,nWaves,Fmod,Xmod,Umod,Mmod,glTau,glWt
         
 def Modulation(H,HP,nWaves,Fmod,Xmod,Umod,glTau,glWt):
     '''
@@ -1361,7 +1699,35 @@ def Modulation(H,HP,nWaves,Fmod,Xmod,Umod,glTau,glWt):
     sinHA = np.sum(Fmod*HbH*np.sin(HdotXD)*glWt,axis=-1)       #imag part; ditto
     return np.array([cosHA,sinHA])             # 2 x refBlk x SGops x atoms
     
-def makeWavesDerv(ngl,waveTypes,FSSdata,XSSdata,USSdata,Mast):
+def ModulationTw(H,HP,nWaves,Fmod,Xmod,Umod,glTau,glWt):
+    '''
+    H: array nRefBlk x tw x ops X hklt
+    HP: array nRefBlk x tw x ops X hklt proj to hkl
+    Fmod: array 2 x atoms x waves    (sin,cos terms)
+    Xmod: array atoms X ngl X 3
+    Umod: array atoms x ngl x 3x3
+    glTau,glWt: arrays Gauss-Lorentzian pos & wts
+    '''
+    
+    if nWaves[2]:
+        if len(HP.shape) > 3:   #Blocks of reflections
+            HbH = np.exp(-np.sum(HP[:,:,nxs,nxs,:]*np.inner(HP,Umod),axis=-1)) # refBlk x ops x atoms x ngl add Overhauser corr.?
+        else:   #single reflections
+            HbH = np.exp(-np.sum(HP[:,nxs,nxs,:]*np.inner(HP,Umod),axis=-1)) # refBlk x ops x atoms x ngl add Overhauser corr.?
+    else:
+        HbH = 1.0
+    HdotX = np.inner(HP,Xmod)                   #refBlk x tw x ops x atoms X ngl
+    if len(H.shape) > 3:
+        D = glTau*H[:,:,:,3:,nxs]              #m*e*tau; refBlk x tw x ops X ngl
+        HdotXD = twopi*(HdotX+D[:,:,:,nxs,:])
+    else:
+        D = H*glTau[nxs,:]              #m*e*tau; refBlk x ops X ngl
+        HdotXD = twopi*(HdotX+D[:,nxs,:])
+    cosHA = np.sum(Fmod*HbH*np.cos(HdotXD)*glWt,axis=-1)       #real part; refBlk X ops x atoms; sum for G-L integration
+    sinHA = np.sum(Fmod*HbH*np.sin(HdotXD)*glWt,axis=-1)       #imag part; ditto
+    return np.array([cosHA,sinHA])             # 2 x refBlk x SGops x atoms
+    
+def makeWavesDerv(ngl,waveTypes,FSSdata,XSSdata,USSdata,MSSdata,Mast):
     '''
     FSSdata: array 2 x atoms x waves    (sin,cos terms)
     XSSdata: array 2x3 x atoms X waves (sin,cos terms)
@@ -1369,8 +1735,6 @@ def makeWavesDerv(ngl,waveTypes,FSSdata,XSSdata,USSdata,Mast):
     Mast: array orthogonalization matrix for Uij
     '''
     glTau,glWt = pwd.pygauleg(0.,1.,ngl)         #get Gauss-Legendre intervals & weights
-    dT = 2./ngl
-    dX = 0.0001
     waveShapes = [FSSdata.T.shape,XSSdata.T.shape,USSdata.T.shape]
     Af = np.array(FSSdata[0]).T    #sin frac mods x waves x atoms
     Bf = np.array(FSSdata[1]).T    #cos frac mods...
@@ -1404,7 +1768,7 @@ def makeWavesDerv(ngl,waveTypes,FSSdata,XSSdata,USSdata,Mast):
             CtauX[iatm] = np.ones_like(Bx)[iatm,:,:,nxs]*np.cos(twopi*tauX)[nxs,:,nxs,:]   #ditto
 #    GSASIIpath.IPyBreak()
     if nWaves[0]:
-        tauF = np.arange(1.,nWaves[0]+1-nf)[:,nxs]*glTau  #Fwaves x ngl
+        tauF = np.arange(1.,nWaves[0]+1)[:,nxs]*glTau  #Fwaves x ngl
         StauF = np.ones_like(Af)[:,:,nxs]*np.sin(twopi*tauF)[nxs,:,:] #also dFmod/dAf
         CtauF = np.ones_like(Bf)[:,:,nxs]*np.cos(twopi*tauF)[nxs,:,:] #also dFmod/dBf
     else:
@@ -1429,7 +1793,7 @@ def makeWavesDerv(ngl,waveTypes,FSSdata,XSSdata,USSdata,Mast):
 def ModulationDerv(H,HP,Hij,nWaves,waveShapes,Fmod,Xmod,UmodAB,SCtauF,SCtauX,SCtauU,glTau,glWt):
     '''
     H: array ops X hklt proj to hkl
-    HP: array nRefBlk x ops X hklt proj to hkl
+    HP: array ops X hklt proj to hkl
     Hij: array 2pi^2[a*^2h^2 b*^2k^2 c*^2l^2 a*b*hk a*c*hl b*c*kl] of projected hklm to hkl space
     '''
    
@@ -1484,6 +1848,64 @@ def ModulationDerv(H,HP,Hij,nWaves,waveShapes,Fmod,Xmod,UmodAB,SCtauF,SCtauX,SCt
 #    GSASIIpath.IPyBreak()
     return [dGdMfC,dGdMfS],[dGdMxC,dGdMxS],[dGdMuC,dGdMuS],[dGdMzC,dGdMzS]
     
+def ModulationDerv2(H,HP,Hij,nWaves,waveShapes,Fmod,Xmod,UmodAB,SCtauF,SCtauX,SCtauU,glTau,glWt):
+    '''
+    H: array refBlk x ops X hklt proj to hkl
+    HP: array refBlk x ops X hklt proj to hkl
+    Hij: array 2pi^2[a*^2h^2 b*^2k^2 c*^2l^2 a*b*hk a*c*hl b*c*kl] of projected hklm to hkl space
+    '''
+   
+    Mf = [H.shape[0],]+list(waveShapes[0])    #=[ops,atoms,waves,2] (sin+cos frac mods)
+    dGdMfC = np.zeros(Mf)
+    dGdMfS = np.zeros(Mf)
+    Mx = [H.shape[0],]+list(waveShapes[1])   #=[ops,atoms,waves,6] (sin+cos pos mods)
+    dGdMxC = np.zeros(Mx)
+    dGdMxS = np.zeros(Mx)
+    Mu = [H.shape[0],]+list(waveShapes[2])    #=[ops,atoms,waves,12] (sin+cos Uij mods)
+    dGdMuC = np.zeros(Mu)
+    dGdMuS = np.zeros(Mu)
+    
+    D = twopi*H[:,:,3,nxs]*glTau[nxs,nxs,:]              #m*e*tau; refBlk x ops X ngl
+    HdotX = twopi*np.inner(HP,Xmod)        #refBlk x ops x atoms X ngl
+    HdotXD = HdotX+D[:,:,nxs,:]
+    if nWaves[2]:
+        Umod = np.swapaxes((UmodAB),2,4)      #atoms x waves x ngl x 3x3 (symmetric so I can do this!) 
+        HuH = np.sum(HP[:,:,nxs,nxs,nxs]*np.inner(HP,Umod),axis=-1)    #refBlk x ops x atoms x waves x ngl
+        HuH = np.sum(HP[:,:,nxs,nxs,nxs]*np.inner(HP,Umod),axis=-1)    #refBlk x ops x atoms x waves x ngl
+        HbH = np.exp(-np.sum(HuH,axis=-2)) #refBlk x ops x atoms x ngl; sum waves - OK vs Modulation version
+        part1 = -np.exp(-HuH)*Fmod    #refBlk x ops x atoms x waves x ngl
+        dUdAu = Hij[:,:,nxs,nxs,nxs,:]*np.rollaxis(G2lat.UijtoU6(SCtauU[0]),0,4)[nxs,nxs,:,:,:,:]    #ops x atoms x waves x ngl x 6sinUij
+        dUdBu = Hij[:,:,nxs,nxs,nxs,:]*np.rollaxis(G2lat.UijtoU6(SCtauU[1]),0,4)[nxs,nxs,:,:,:,:]    #ops x atoms x waves x ngl x 6cosUij
+        dGdMuCa = np.sum(part1[:,:,:,:,:,nxs]*dUdAu*np.cos(HdotXD)[:,:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)   #ops x atoms x waves x 6uij; G-L sum
+        dGdMuCb = np.sum(part1[:,:,:,:,:,nxs]*dUdBu*np.cos(HdotXD)[:,:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)
+        dGdMuC = np.concatenate((dGdMuCa,dGdMuCb),axis=-1)   #ops x atoms x waves x 12uij
+        dGdMuSa = np.sum(part1[:,:,:,:,:,nxs]*dUdAu*np.sin(HdotXD)[:,:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)   #ops x atoms x waves x 6uij; G-L sum
+        dGdMuSb = np.sum(part1[:,:,:,:,:,nxs]*dUdBu*np.sin(HdotXD)[:,:,:,nxs,:,nxs]*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)
+        dGdMuS = np.concatenate((dGdMuSa,dGdMuSb),axis=-1)   #ops x atoms x waves x 12uij
+    else:
+        HbH = np.ones_like(HdotX)
+    dHdXA = twopi*HP[:,:,nxs,nxs,nxs,:]*np.swapaxes(SCtauX[0],-1,-2)[nxs,nxs,:,:,:,:]    #ops x atoms x sine waves x ngl x xyz
+    dHdXB = twopi*HP[:,:,nxs,nxs,nxs,:]*np.swapaxes(SCtauX[1],-1,-2)[nxs,nxs,:,:,:,:]    #ditto - cos waves
+# ops x atoms x waves x 2xyz - real part - good
+    dGdMxCa = -np.sum((Fmod*HbH)[:,:,:,nxs,:,nxs]*(dHdXA*np.sin(HdotXD)[:,:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMxCb = -np.sum((Fmod*HbH)[:,:,:,nxs,:,nxs]*(dHdXB*np.sin(HdotXD)[:,:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMxC = np.concatenate((dGdMxCa,dGdMxCb),axis=-1)
+# ops x atoms x waves x 2xyz - imag part - good
+    dGdMxSa = np.sum((Fmod*HbH)[:,:,:,nxs,:,nxs]*(dHdXA*np.cos(HdotXD)[:,:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)    
+    dGdMxSb = np.sum((Fmod*HbH)[:,:,:,nxs,:,nxs]*(dHdXB*np.cos(HdotXD)[:,:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)    
+    dGdMxS = np.concatenate((dGdMxSa,dGdMxSb),axis=-1)
+# ZigZag/Block waves - problems here?
+    dHdXZt = -twopi*HP[:,:,nxs,nxs,nxs,:]*np.swapaxes(SCtauX[2],-1,-2)[nxs,nxs,:,:,:,:]          #ops x atoms x ngl x 2(ZigZag/Block Tminmax)
+    dHdXZx = twopi*HP[:,:,nxs,nxs,:]*np.swapaxes(SCtauX[3],-1,-2)[nxs,nxs,:,:,:]          #ops x atoms x ngl x 3(ZigZag/Block XYZmax)
+    dGdMzCt = -np.sum((Fmod*HbH)[:,:,:,nxs,:,nxs]*(dHdXZt*np.sin(HdotXD)[:,:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMzCx = -np.sum((Fmod*HbH)[:,:,:,:,nxs]*(dHdXZx*np.sin(HdotXD)[:,:,:,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMzC = np.concatenate((np.sum(dGdMzCt,axis=-1),dGdMzCx),axis=-1)
+    dGdMzSt = np.sum((Fmod*HbH)[:,:,:,nxs,:,nxs]*(dHdXZt*np.cos(HdotXD)[:,:,:,nxs,:,nxs])*glWt[nxs,nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMzSx = np.sum((Fmod*HbH)[:,:,:,:,nxs]*(dHdXZx*np.cos(HdotXD)[:,:,:,:,nxs])*glWt[nxs,nxs,nxs,:,nxs],axis=-2)
+    dGdMzS = np.concatenate((np.sum(dGdMzSt,axis=-1),dGdMzSx),axis=-1)
+#    GSASIIpath.IPyBreak()
+    return [dGdMfC,dGdMfS],[dGdMxC,dGdMxS],[dGdMuC,dGdMuS],[dGdMzC,dGdMzS]
+    
 def posFourier(tau,psin,pcos):
     A = np.array([ps[:,nxs]*np.sin(2*np.pi*(i+1)*tau) for i,ps in enumerate(psin)])
     B = np.array([pc[:,nxs]*np.cos(2*np.pi*(i+1)*tau) for i,pc in enumerate(pcos)])
@@ -1524,43 +1946,54 @@ def fracCrenel(tau,Toff,Twid):
     return A
     
 def fracFourier(tau,fsin,fcos):
-    A = np.array([fs[:,nxs]*np.sin(2.*np.pi*(i+1)*tau) for i,fs in enumerate(fsin)])
-    B = np.array([fc[:,nxs]*np.cos(2.*np.pi*(i+1)*tau) for i,fc in enumerate(fcos)])
+    if len(fsin) == 1:
+        A = np.array([fsin[0]*np.sin(2.*np.pi*tau)])
+        B = np.array([fcos[0]*np.cos(2.*np.pi*tau)])
+    else:
+        A = np.array([fs[:,nxs]*np.sin(2.*np.pi*(i+1)*tau) for i,fs in enumerate(fsin)])
+        B = np.array([fc[:,nxs]*np.cos(2.*np.pi*(i+1)*tau) for i,fc in enumerate(fcos)])
     return np.sum(A,axis=0)+np.sum(B,axis=0)
-    
+
 def ApplyModulation(data,tau):
     '''Applies modulation to drawing atom positions & Uijs for given tau
     '''
     generalData = data['General']
+    cell = generalData['Cell'][1:7]
+    G,g = G2lat.cell2Gmat(cell)
     SGData = generalData['SGData']
     SSGData = generalData['SSGData']
     cx,ct,cs,cia = generalData['AtomPtrs']
     drawingData = data['Drawing']
+    modul = generalData['SuperVec'][0]
     dcx,dct,dcs,dci = drawingData['atomPtrs']
     atoms = data['Atoms']
     drawAtoms = drawingData['Atoms']
-    Fade = np.zeros(len(drawAtoms))
-    for atom in atoms:    
-        atxyz = G2spc.MoveToUnitCell(np.array(atom[cx:cx+3]))[0]
+    Fade = np.ones(len(drawAtoms))
+    for atom in atoms:
+        atxyz = np.array(atom[cx:cx+3])
         atuij = np.array(atom[cia+2:cia+8])
-        waveType = atom[-1]['SS1']['waveType']
         Sfrac = atom[-1]['SS1']['Sfrac']
         Spos = atom[-1]['SS1']['Spos']
         Sadp = atom[-1]['SS1']['Sadp']
+        if generalData['Type'] == 'magnetic':
+            Smag = atom[-1]['SS1']['Smag']
+            atmom = np.array(atom[cx+4:cx+7])
         indx = FindAtomIndexByIDs(drawAtoms,dci,[atom[cia+8],],True)
         for ind in indx:
             drawatom = drawAtoms[ind]
             opr = drawatom[dcs-1]
-            sop,ssop,icent = G2spc.OpsfromStringOps(opr,SGData,SSGData)
-            sdet,ssdet,dtau,dT,tauT = G2spc.getTauT(tau,sop,ssop,atxyz)
+            sop,ssop,icent,cent,unit = G2spc.OpsfromStringOps(opr,SGData,SSGData)
+            drxyz = (np.inner(sop[0],atxyz)+sop[1]+cent)*icent+np.array(unit)
+            tauT = G2spc.getTauT(tau,sop,ssop,drxyz,modul)[-1]
             tauT *= icent       #invert wave on -1
             wave = np.zeros(3)
             uwave = np.zeros(6)
-            #how do I handle Sfrac? - fade the atoms?
+            mom = np.zeros(3)
             if len(Sfrac):
                 scof = []
                 ccof = []
-                for i,sfrac in enumerate(Sfrac):
+                waveType = Sfrac[0]
+                for i,sfrac in enumerate(Sfrac[1:]):
                     if not i and 'Crenel' in waveType:
                         Fade[ind] += fracCrenel(tauT,sfrac[0][0],sfrac[0][1])
                     else:
@@ -1571,7 +2004,8 @@ def ApplyModulation(data,tau):
             if len(Spos):
                 scof = []
                 ccof = []
-                for i,spos in enumerate(Spos):
+                waveType = Spos[0]
+                for i,spos in enumerate(Spos[1:]):
                     if waveType in ['ZigZag','Block'] and not i:
                         Tminmax = spos[0][:2]
                         XYZmax = np.array(spos[0][2:])
@@ -1584,10 +2018,23 @@ def ApplyModulation(data,tau):
                         ccof.append(spos[0][3:])
                 if len(scof):
                     wave += np.sum(posFourier(tauT,np.array(scof),np.array(ccof)),axis=1)
+            if generalData['Type'] == 'magnetic' and len(Smag):
+                scof = []
+                ccof = []
+                waveType = Smag[0]
+                for i,spos in enumerate(Smag[1:]):
+                    scof.append(spos[0][:3])
+                    ccof.append(spos[0][3:])
+                if len(scof):               #ToDo: something odd here, but it works
+                    if icent < 0:                        
+                        mom += np.sum(posFourier(.25-tauT,np.array(scof),np.array(ccof)),axis=1)
+                    else:
+                        mom += np.sum(posFourier(tauT*icent,np.array(scof),np.array(ccof)),axis=1)
             if len(Sadp):
                 scof = []
                 ccof = []
-                for i,sadp in enumerate(Sadp):
+                waveType = Sadp[0]
+                for i,sadp in enumerate(Sadp[1:]):
                     scof.append(sadp[0][:6])
                     ccof.append(sadp[0][6:])
                 uwave += np.sum(posFourier(tauT,np.array(scof),np.array(ccof)),axis=1)
@@ -1598,6 +2045,9 @@ def ApplyModulation(data,tau):
             else:
                 X = G2spc.ApplyStringOps(opr,SGData,atxyz+wave)
                 drawatom[dcx:dcx+3] = X
+            if generalData['Type'] == 'magnetic':
+                M = G2spc.ApplyStringOpsMom(opr,SGData,atmom+mom)
+                drawatom[dcx+3:dcx+6] = M
     return drawAtoms,Fade
     
 # gauleg.py Gauss Legendre numerical quadrature, x and w computation 
@@ -1608,35 +2058,34 @@ def ApplyModulation(data,tau):
 #        for i in range(1,n+1):          #  yes, 1..n                   
 #          area += w[i]*f(x[i])                                    
 
-import math
 def gaulegf(a, b, n):
-  x = range(n+1) # x[0] unused
-  w = range(n+1) # w[0] unused
-  eps = 3.0E-14
-  m = (n+1)/2
-  xm = 0.5*(b+a)
-  xl = 0.5*(b-a)
-  for i in range(1,m+1):
-    z = math.cos(3.141592654*(i-0.25)/(n+0.5))
-    while True:
-      p1 = 1.0
-      p2 = 0.0
-      for j in range(1,n+1):
-        p3 = p2
-        p2 = p1
-        p1 = ((2.0*j-1.0)*z*p2-(j-1.0)*p3)/j
+    x = range(n+1) # x[0] unused
+    w = range(n+1) # w[0] unused
+    eps = 3.0E-14
+    m = (n+1)/2
+    xm = 0.5*(b+a)
+    xl = 0.5*(b-a)
+    for i in range(1,m+1):
+        z = math.cos(3.141592654*(i-0.25)/(n+0.5))
+        while True:
+            p1 = 1.0
+            p2 = 0.0
+            for j in range(1,n+1):
+                p3 = p2
+                p2 = p1
+                p1 = ((2.0*j-1.0)*z*p2-(j-1.0)*p3)/j
+        
+            pp = n*(z*p1-p2)/(z*z-1.0)
+            z1 = z
+            z = z1 - p1/pp
+            if abs(z-z1) <= eps:
+                break
 
-      pp = n*(z*p1-p2)/(z*z-1.0)
-      z1 = z
-      z = z1 - p1/pp
-      if abs(z-z1) <= eps:
-	    break
-
-    x[i] = xm - xl*z
-    x[n+1-i] = xm + xl*z
-    w[i] = 2.0*xl/((1.0-z*z)*pp*pp)
-    w[n+1-i] = w[i]
-  return np.array(x), np.array(w)
+        x[i] = xm - xl*z
+        x[n+1-i] = xm + xl*z
+        w[i] = 2.0*xl/((1.0-z*z)*pp*pp)
+        w[n+1-i] = w[i]
+    return np.array(x), np.array(w)
 # end gaulegf 
     
     
@@ -1685,8 +2134,91 @@ def BessIn(nmax,x):
 ##### distance, angle, planes, torsion stuff 
 ################################################################################
 
+def CalcDist(distance_dict, distance_atoms, parmDict):
+    if not len(parmDict):
+        return 0.
+    pId = distance_dict['pId']
+    A = [parmDict['%s::A%d'%(pId,i)] for i in range(6)]
+    Amat = G2lat.cell2AB(G2lat.A2cell(A))[0]
+    Oxyz = [parmDict['%s::A%s:%d'%(pId,x,distance_atoms[0])] for x in ['x','y','z']]
+    Txyz = [parmDict['%s::A%s:%d'%(pId,x,distance_atoms[1])] for x in ['x','y','z']]
+    inv = 1
+    symNo = distance_dict['symNo']
+    if symNo < 0:
+        inv = -1
+        symNo *= -1
+    cen = symNo//100
+    op = symNo%100-1
+    M,T = distance_dict['SGData']['SGOps'][op]
+    D = T*inv+distance_dict['SGData']['SGCen'][cen]
+    D += distance_dict['cellNo']
+    Txyz = np.inner(M*inv,Txyz)+D
+    dist = np.sqrt(np.sum(np.inner(Amat,(Txyz-Oxyz))**2))
+#    GSASIIpath.IPyBreak()
+    return dist    
+    
+def CalcDistDeriv(distance_dict, distance_atoms, parmDict):
+    if not len(parmDict):
+        return None
+    pId = distance_dict['pId']
+    A = [parmDict['%s::A%d'%(pId,i)] for i in range(6)]
+    Amat = G2lat.cell2AB(G2lat.A2cell(A))[0]
+    Oxyz = [parmDict['%s::A%s:%d'%(pId,x,distance_atoms[0])] for x in ['x','y','z']]
+    Txyz = [parmDict['%s::A%s:%d'%(pId,x,distance_atoms[1])] for x in ['x','y','z']]
+    symNo = distance_dict['symNo']
+    Tunit = distance_dict['cellNo']
+    SGData = distance_dict['SGData']    
+    deriv = getDistDerv(Oxyz,Txyz,Amat,Tunit,symNo,SGData)
+    return deriv
+   
+def CalcAngle(angle_dict, angle_atoms, parmDict):
+    if not len(parmDict):
+        return 0.
+    pId = angle_dict['pId']
+    A = [parmDict['%s::A%d'%(pId,i)] for i in range(6)]
+    Amat = G2lat.cell2AB(G2lat.A2cell(A))[0]
+    Oxyz = [parmDict['%s::A%s:%d'%(pId,x,angle_atoms[0])] for x in ['x','y','z']]
+    Axyz = [parmDict['%s::A%s:%d'%(pId,x,angle_atoms[1][0])] for x in ['x','y','z']]
+    Bxyz = [parmDict['%s::A%s:%d'%(pId,x,angle_atoms[1][1])] for x in ['x','y','z']]
+    ABxyz = [Axyz,Bxyz]
+    symNo = angle_dict['symNo']
+    vec = np.zeros((2,3))
+    for i in range(2):
+        inv = 1
+        if symNo[i] < 0:
+            inv = -1
+        cen = inv*symNo[i]//100
+        op = inv*symNo[i]%100-1
+        M,T = angle_dict['SGData']['SGOps'][op]
+        D = T*inv+angle_dict['SGData']['SGCen'][cen]
+        D += angle_dict['cellNo'][i]
+        ABxyz[i] = np.inner(M*inv,ABxyz[i])+D
+        vec[i] = np.inner(Amat,(ABxyz[i]-Oxyz))
+        dist = np.sqrt(np.sum(vec[i]**2))
+        if not dist:
+            return 0.
+        vec[i] /= dist
+    angle = acosd(np.sum(vec[0]*vec[1]))
+#    GSASIIpath.IPyBreak()
+    return angle
+
+def CalcAngleDeriv(angle_dict, angle_atoms, parmDict):
+    if not len(parmDict):
+        return None
+    pId = angle_dict['pId']
+    A = [parmDict['%s::A%d'%(pId,i)] for i in range(6)]
+    Amat = G2lat.cell2AB(G2lat.A2cell(A))[0]
+    Oxyz = [parmDict['%s::A%s:%d'%(pId,x,angle_atoms[0])] for x in ['x','y','z']]
+    Axyz = [parmDict['%s::A%s:%d'%(pId,x,angle_atoms[1][0])] for x in ['x','y','z']]
+    Bxyz = [parmDict['%s::A%s:%d'%(pId,x,angle_atoms[1][1])] for x in ['x','y','z']]
+    symNo = angle_dict['symNo']
+    Tunit = angle_dict['cellNo']
+    SGData = angle_dict['SGData']    
+    deriv = getAngleDerv(Oxyz,Axyz,Bxyz,Amat,Tunit,symNo,SGData)
+    return deriv
+
 def getSyXYZ(XYZ,ops,SGData):
-    '''default doc string
+    '''default doc 
     
     :param type name: description
     
@@ -1703,9 +2235,9 @@ def getSyXYZ(XYZ,ops,SGData):
             if len(oprs)>1:
                 unit = np.array(list(eval(oprs[1])))
             syop =int(oprs[0])
-            inv = syop/abs(syop)
+            inv = syop//abs(syop)
             syop *= inv
-            cent = syop/100
+            cent = syop//100
             syop %= 100
             syop -= 1
             M,T = SGData['SGOps'][syop]
@@ -1977,7 +2509,7 @@ def getDistDerv(Oxyz,Txyz,Amat,Tunit,Top,SGData):
         return np.sqrt(np.sum(np.inner(Amat,(TxT-Ox))**2))
         
     inv = Top/abs(Top)
-    cent = abs(Top)/100
+    cent = abs(Top)//100
     op = abs(Top)%100-1
     M,T = SGData['SGOps'][op]
     C = SGData['SGCen'][cent]
@@ -1994,6 +2526,49 @@ def getDistDerv(Oxyz,Txyz,Amat,Tunit,Top,SGData):
         Txyz[i] += 2*dx
         deriv[i+3] = (calcDist(Oxyz,Txyz,Tunit,inv,C,M,T,Amat)-d0)/(2.*dx)
         Txyz[i] -= dx
+    return deriv
+    
+def getAngleDerv(Oxyz,Axyz,Bxyz,Amat,Tunit,symNo,SGData):
+    
+    def calcAngle(Oxyz,ABxyz,Amat,Tunit,symNo,SGData):
+        vec = np.zeros((2,3))
+        for i in range(2):
+            inv = 1
+            if symNo[i] < 0:
+                inv = -1
+            cen = inv*symNo[i]//100
+            op = inv*symNo[i]%100-1
+            M,T = SGData['SGOps'][op]
+            D = T*inv+SGData['SGCen'][cen]
+            D += Tunit[i]
+            ABxyz[i] = np.inner(M*inv,ABxyz[i])+D
+            vec[i] = np.inner(Amat,(ABxyz[i]-Oxyz))
+            dist = np.sqrt(np.sum(vec[i]**2))
+            if not dist:
+                return 0.
+            vec[i] /= dist
+        angle = acosd(np.sum(vec[0]*vec[1]))
+    #    GSASIIpath.IPyBreak()
+        return angle
+        
+    dx = .00001
+    deriv = np.zeros(9)
+    for i in [0,1,2]:
+        Oxyz[i] -= dx
+        a0 = calcAngle(Oxyz,[Axyz,Bxyz],Amat,Tunit,symNo,SGData)
+        Oxyz[i] += 2*dx
+        deriv[i] = (calcAngle(Oxyz,[Axyz,Bxyz],Amat,Tunit,symNo,SGData)-a0)/(2.*dx)
+        Oxyz[i] -= dx
+        Axyz[i] -= dx
+        a0 = calcAngle(Oxyz,[Axyz,Bxyz],Amat,Tunit,symNo,SGData)
+        Axyz[i] += 2*dx
+        deriv[i+3] = (calcAngle(Oxyz,[Axyz,Bxyz],Amat,Tunit,symNo,SGData)-a0)/(2.*dx)
+        Axyz[i] -= dx
+        Bxyz[i] -= dx
+        a0 = calcAngle(Oxyz,[Axyz,Bxyz],Amat,Tunit,symNo,SGData)
+        Bxyz[i] += 2*dx
+        deriv[i+6] = (calcAngle(Oxyz,[Axyz,Bxyz],Amat,Tunit,symNo,SGData)-a0)/(2.*dx)
+        Bxyz[i] -= dx
     return deriv
     
 def getAngSig(VA,VB,Amat,SGData,covData={}):
@@ -2022,10 +2597,10 @@ def getAngSig(VA,VB,Amat,SGData,covData={}):
     OxAN,OxA,TxAN,TxA,unitA,TopA = VA
     OxBN,OxB,TxBN,TxB,unitB,TopB = VB
     invA = invB = 1
-    invA = TopA/abs(TopA)
-    invB = TopB/abs(TopB)
-    centA = abs(TopA)/100
-    centB = abs(TopB)/100
+    invA = TopA//abs(TopA)
+    invB = TopB//abs(TopB)
+    centA = abs(TopA)//100
+    centB = abs(TopB)//100
     opA = abs(TopA)%100-1
     opB = abs(TopB)%100-1
     MA,TA = SGData['SGOps'][opA]
@@ -2083,25 +2658,23 @@ def GetDistSig(Oatoms,Atoms,Amat,SGData,covData={}):
         V1 = XYZ[1]-XYZ[0]
         return np.sqrt(np.sum(V1**2))
         
-    Inv = []
     SyOps = []
     names = []
     for i,atom in enumerate(Oatoms):
         names += atom[-1]
         Op,unit = Atoms[i][-1]
-        inv = Op/abs(Op)
+        inv = Op//abs(Op)
         m,t = SGData['SGOps'][abs(Op)%100-1]
-        c = SGData['SGCen'][abs(Op)/100]
+        c = SGData['SGCen'][abs(Op)//100]
         SyOps.append([inv,m,t,c,unit])
     Dist = calcDist(Oatoms,SyOps,Amat)
     
     sig = -0.001
     if 'covMatrix' in covData:
-        parmNames = []
         dx = .00001
         dadx = np.zeros(6)
         for i in range(6):
-            ia = i/3
+            ia = i//3
             ix = i%3
             Oatoms[ia][ix+1] += dx
             a0 = calcDist(Oatoms,SyOps,Amat)
@@ -2140,25 +2713,23 @@ def GetAngleSig(Oatoms,Atoms,Amat,SGData,covData={}):
         cang = min(1.,max((2.-np.sum(V3**2))/2.,-1.))
         return acosd(cang)
 
-    Inv = []
     SyOps = []
     names = []
     for i,atom in enumerate(Oatoms):
         names += atom[-1]
         Op,unit = Atoms[i][-1]
-        inv = Op/abs(Op)
+        inv = Op//abs(Op)
         m,t = SGData['SGOps'][abs(Op)%100-1]
-        c = SGData['SGCen'][abs(Op)/100]
+        c = SGData['SGCen'][abs(Op)//100]
         SyOps.append([inv,m,t,c,unit])
     Angle = calcAngle(Oatoms,SyOps,Amat)
     
     sig = -0.01
     if 'covMatrix' in covData:
-        parmNames = []
         dx = .00001
         dadx = np.zeros(9)
         for i in range(9):
-            ia = i/3
+            ia = i//3
             ix = i%3
             Oatoms[ia][ix+1] += dx
             a0 = calcAngle(Oatoms,SyOps,Amat)
@@ -2198,32 +2769,29 @@ def GetTorsionSig(Oatoms,Atoms,Amat,SGData,covData={}):
         V3 /= np.sqrt(np.sum(V3**2))
         M = np.array([V1,V2,V3])
         D = nl.det(M)
-        Ang = 1.0
         P12 = np.dot(V1,V2)
         P13 = np.dot(V1,V3)
         P23 = np.dot(V2,V3)
         Tors = acosd((P12*P23-P13)/(np.sqrt(1.-P12**2)*np.sqrt(1.-P23**2)))*D/abs(D)
         return Tors
             
-    Inv = []
     SyOps = []
     names = []
     for i,atom in enumerate(Oatoms):
         names += atom[-1]
         Op,unit = Atoms[i][-1]
-        inv = Op/abs(Op)
+        inv = Op//abs(Op)
         m,t = SGData['SGOps'][abs(Op)%100-1]
-        c = SGData['SGCen'][abs(Op)/100]
+        c = SGData['SGCen'][abs(Op)//100]
         SyOps.append([inv,m,t,c,unit])
     Tors = calcTorsion(Oatoms,SyOps,Amat)
     
     sig = -0.01
     if 'covMatrix' in covData:
-        parmNames = []
         dx = .00001
         dadx = np.zeros(12)
         for i in range(12):
-            ia = i/3
+            ia = i//3
             ix = i%3
             Oatoms[ia][ix+1] -= dx
             a0 = calcTorsion(Oatoms,SyOps,Amat)
@@ -2289,22 +2857,20 @@ def GetDATSig(Oatoms,Atoms,Amat,SGData,covData={}):
         V3 /= np.sqrt(np.sum(V3**2))
         M = np.array([V1,V2,V3])
         D = nl.det(M)
-        Ang = 1.0
         P12 = np.dot(V1,V2)
         P13 = np.dot(V1,V3)
         P23 = np.dot(V2,V3)
         Tors = acosd((P12*P23-P13)/(np.sqrt(1.-P12**2)*np.sqrt(1.-P23**2)))*D/abs(D)
         return Tors
             
-    Inv = []
     SyOps = []
     names = []
     for i,atom in enumerate(Oatoms):
         names += atom[-1]
         Op,unit = Atoms[i][-1]
-        inv = Op/abs(Op)
+        inv = Op//abs(Op)
         m,t = SGData['SGOps'][abs(Op)%100-1]
-        c = SGData['SGCen'][abs(Op)/100]
+        c = SGData['SGCen'][abs(Op)//100]
         SyOps.append([inv,m,t,c,unit])
     M = len(Oatoms)
     if M == 2:
@@ -2317,12 +2883,11 @@ def GetDATSig(Oatoms,Atoms,Amat,SGData,covData={}):
     sigVals = [-0.001,-0.01,-0.01]
     sig = sigVals[M-3]
     if 'covMatrix' in covData:
-        parmNames = []
         dx = .00001
         N = M*3
         dadx = np.zeros(N)
         for i in range(N):
-            ia = i/3
+            ia = i//3
             ix = i%3
             Oatoms[ia][ix+1] += dx
             if M == 2:
@@ -2378,6 +2943,9 @@ def ValEsd(value,esd=0,nTZ=False):
     if math.isnan(esd): # invalid esd, treat as zero
         esd = 0
         esdoff = 5
+#    if esd < 1.e-5:
+#        esd = 0
+#        esdoff = 5
     elif esd != 0:
         # transform the esd to a one or two digit integer
         l = math.log10(abs(esd)) % 1.
@@ -2421,6 +2989,189 @@ def ValEsd(value,esd=0,nTZ=False):
         out += ("e{:d}").format(valoff) # add an exponent, when needed
     return out
     
+###############################################################################
+##### Protein validation - "ERRATV2" analysis
+###############################################################################
+
+def validProtein(Phase,old):
+    
+    def sumintact(intact):
+        return {'CC':intact['CC'],'NN':intact['NN'],'OO':intact['OO'],
+        'CN':(intact['CN']+intact['NC']),'CO':(intact['CO']+intact['OC']),
+        'NO':(intact['NO']+intact['ON'])}
+        
+    resNames = ['ALA','ARG','ASN','ASP','CYS','GLN','GLU','GLY','HIS','ILE',
+        'LEU','LYS','MET','PHE','PRO','SER','THR','TRP','TYR','VAL','MSE']
+# data from errat.f
+    b1_old = np.array([ 
+        [1154.343,  600.213, 1051.018, 1132.885,  960.738],
+        [600.213, 1286.818, 1282.042,  957.156,  612.789],
+        [1051.018, 1282.042, 3519.471,  991.974, 1226.491],
+        [1132.885,  957.156,  991.974, 1798.672,  820.355],
+        [960.738,  612.789, 1226.491,  820.355, 2428.966]
+        ])
+    avg_old = np.array([ 0.225, 0.281, 0.071, 0.237, 0.044])    #Table 1 3.5A Obsd. Fr. p 1513
+# data taken from erratv2.ccp
+    b1 = np.array([
+          [5040.279078850848200,	3408.805141583649400,	4152.904423767300600,	4236.200004171890200,	5054.781210204625500],	
+          [3408.805141583648900,	8491.906094010220800,	5958.881777877950300,	1521.387352718486200,	4304.078200827221700],	
+          [4152.904423767301500,	5958.881777877952100,	7637.167089335050100,	6620.715738223072500,	5287.691183798410700],	
+          [4236.200004171890200,	1521.387352718486200,	6620.715738223072500,	18368.343774298410000,	4050.797811118806700],	
+          [5054.781210204625500,	4304.078200827220800,	5287.691183798409800,	4050.797811118806700,	6666.856740479164700]])
+    avg = np.array([0.192765509919262, 0.195575208778518, 0.275322406824210, 0.059102357035642, 0.233154192767480])
+    General = Phase['General']
+    Amat,Bmat = G2lat.cell2AB(General['Cell'][1:7])
+    cx,ct,cs,cia = General['AtomPtrs']
+    Atoms = Phase['Atoms']
+    cartAtoms = []
+    xyzmin = 999.*np.ones(3)
+    xyzmax = -999.*np.ones(3)
+    #select residue atoms,S,Se --> O make cartesian
+    for atom in Atoms:
+        if atom[1] in resNames:
+            cartAtoms.append(atom[:cx+3])
+            if atom[4].strip() in ['S','Se']:
+                if not old:
+                    continue        #S,Se skipped for erratv2?
+                cartAtoms[-1][3] = 'Os'
+                cartAtoms[-1][4] = 'O'
+            cartAtoms[-1][cx:cx+3] = np.inner(Amat,cartAtoms[-1][cx:cx+3])
+            cartAtoms[-1].append(atom[cia+8])
+    XYZ = np.array([atom[cx:cx+3] for atom in cartAtoms])
+    xyzmin = np.array([np.min(XYZ.T[i]) for i in [0,1,2]])
+    xyzmax = np.array([np.max(XYZ.T[i]) for i in [0,1,2]])
+    nbox = list(np.array(np.ceil((xyzmax-xyzmin)/4.),dtype=int))+[15,]
+    Boxes = np.zeros(nbox,dtype=int)
+    iBox = np.array([np.trunc((XYZ.T[i]-xyzmin[i])/4.) for i in [0,1,2]],dtype=int).T
+    for ib,box in enumerate(iBox):  #put in a try for too many atoms in box (IndexError)?
+        try:
+            Boxes[box[0],box[1],box[2],0] += 1
+            Boxes[box[0],box[1],box[2],Boxes[box[0],box[1],box[2],0]] = ib
+        except IndexError:
+            print('too many atoms in box' )
+            continue
+    #Box content checks with errat.f $ erratv2.cpp ibox1 arrays
+    indices = (-1,0,1)
+    Units = np.array([[h,k,l] for h in indices for k in indices for l in indices]) 
+    dsmax = 3.75**2
+    if old:
+        dsmax = 3.5**2
+    chains = []
+    resIntAct = []
+    chainIntAct = []
+    res = []
+    resNames = []
+    resIDs = {}
+    resname = []
+    resID = {}
+    newChain = True
+    intact = {'CC':0,'CN':0,'CO':0,'NN':0,'NO':0,'OO':0,'NC':0,'OC':0,'ON':0}
+    for ia,atom in enumerate(cartAtoms):
+        jntact = {'CC':0,'CN':0,'CO':0,'NN':0,'NO':0,'OO':0,'NC':0,'OC':0,'ON':0}
+        if atom[2] not in chains:   #get chain id & save residue sequence from last chain
+            chains.append(atom[2])
+            if len(resIntAct):
+                resIntAct.append(sumintact(intact))
+                chainIntAct.append(resIntAct)
+                resNames += resname
+                resIDs.update(resID)
+                res = []
+                resname = []
+                resID = {}
+                resIntAct = []
+                intact = {'CC':0,'CN':0,'CO':0,'NN':0,'NO':0,'OO':0,'NC':0,'OC':0,'ON':0}
+                newChain = True
+        if atom[0] not in res:  #new residue, get residue no.
+            if res and int(res[-1]) != int(atom[0])-1:  #a gap in chain - not new chain
+                intact = {'CC':0,'CN':0,'CO':0,'NN':0,'NO':0,'OO':0,'NC':0,'OC':0,'ON':0}
+                ires = int(res[-1])
+                for i in range(int(atom[0])-ires-1):
+                    res.append(str(ires+i+1))
+                    resname.append('')
+                    resIntAct.append(sumintact(intact))
+            res.append(atom[0])
+            name = '%s-%s%s'%(atom[2],atom[0],atom[1])
+            resname.append(name)
+            resID[name] = atom[-1]
+            if not newChain:
+                resIntAct.append(sumintact(intact))
+            intact = {'CC':0,'CN':0,'CO':0,'NN':0,'NO':0,'OO':0,'NC':0,'OC':0,'ON':0}
+            newChain = False
+        ibox = iBox[ia]         #box location of atom
+        tgts = []
+        for unit in Units:      #assemble list of all possible target atoms
+            jbox = ibox+unit
+            if np.all(jbox>=0) and np.all((jbox-nbox[:3])<0):                
+                tgts += list(Boxes[jbox[0],jbox[1],jbox[2]])
+        tgts = list(set(tgts))
+        tgts = [tgt for tgt in tgts if atom[:3] != cartAtoms[tgt][:3]]    #exclude same residue
+        tgts = [tgt for tgt in tgts if np.sum((XYZ[ia]-XYZ[tgt])**2) < dsmax]
+        ires = int(atom[0])
+        if old:
+            if atom[3].strip() == 'C':
+                tgts = [tgt for tgt in tgts if not (cartAtoms[tgt][3].strip() == 'N' and int(cartAtoms[tgt][0]) in [ires-1,ires+1])]
+            elif atom[3].strip() == 'N':
+                tgts = [tgt for tgt in tgts if not (cartAtoms[tgt][3].strip() in ['C','CA'] and int(cartAtoms[tgt][0]) in [ires-1,ires+1])]
+            elif atom[3].strip() == 'CA':
+                tgts = [tgt for tgt in tgts if not (cartAtoms[tgt][3].strip() == 'N' and int(cartAtoms[tgt][0]) in [ires-1,ires+1])]
+        else:
+            tgts = [tgt for tgt in tgts if not int(cartAtoms[tgt][0]) in [ires+1,ires+2,ires+3,ires+4,ires+5,ires+6,ires+7,ires+8]]
+            if atom[3].strip() == 'C':
+                tgts = [tgt for tgt in tgts if not (cartAtoms[tgt][3].strip() == 'N' and int(cartAtoms[tgt][0]) == ires+1)]
+            elif atom[3].strip() == 'N':
+                tgts = [tgt for tgt in tgts if not (cartAtoms[tgt][3].strip() == 'C' and int(cartAtoms[tgt][0]) == ires-1)]
+        for tgt in tgts:
+            dsqt = np.sqrt(np.sum((XYZ[ia]-XYZ[tgt])**2))
+            mult = 1.0
+            if dsqt > 3.25 and not old:
+                mult = 2.*(3.75-dsqt)
+            intype = atom[4].strip()+cartAtoms[tgt][4].strip()
+            if 'S' not in intype:
+                intact[intype] += mult
+                jntact[intype] += mult
+#        print ia,atom[0]+atom[1]+atom[3],tgts,jntact['CC'],jntact['CN']+jntact['NC'],jntact['CO']+jntact['OC'],jntact['NN'],jntact['NO']+jntact['ON']
+    resNames += resname
+    resIDs.update(resID)
+    resIntAct.append(sumintact(intact))
+    chainIntAct.append(resIntAct)
+    chainProb = []
+    for ich,chn in enumerate(chains):
+        IntAct = chainIntAct[ich]
+        nRes = len(IntAct)
+        Probs = [0.,0.,0.,0.]   #skip 1st 4 residues in chain
+        for i in range(4,nRes-4):
+            if resNames[i]:
+                mtrx = np.zeros(5)
+                summ = 0.
+                for j in range(i-4,i+5):
+                    summ += np.sum(np.array(list(IntAct[j].values())))
+                    if old:
+                        mtrx[0] += IntAct[j]['CC']
+                        mtrx[1] += IntAct[j]['CO']
+                        mtrx[2] += IntAct[j]['NN']
+                        mtrx[3] += IntAct[j]['NO']
+                        mtrx[4] += IntAct[j]['OO']
+                    else:
+                        mtrx[0] += IntAct[j]['CC']
+                        mtrx[1] += IntAct[j]['CN']
+                        mtrx[2] += IntAct[j]['CO']
+                        mtrx[3] += IntAct[j]['NN']
+                        mtrx[4] += IntAct[j]['NO']
+                mtrx /= summ
+    #            print i+1,mtrx*summ
+                if old:
+                    mtrx -= avg_old
+                    prob = np.inner(np.inner(mtrx,b1_old),mtrx)
+                else:
+                    mtrx -= avg
+                    prob = np.inner(np.inner(mtrx,b1),mtrx)
+            else:       #skip the gaps
+                prob = 0.0
+            Probs.append(prob)
+        Probs += 4*[0.,]        #skip last 4 residues in chain
+        chainProb += Probs
+    return resNames,chainProb,resIDs
+    
 ################################################################################
 ##### Texture fitting stuff
 ################################################################################
@@ -2430,7 +3181,7 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
     ptx.pyqlmninit()            #initialize fortran arrays for spherical harmonics
     
     def printSpHarm(textureData,SHtextureSig):
-        print '\n Spherical harmonics texture: Order:' + str(textureData['Order'])
+        print ('\n Spherical harmonics texture: Order:' + str(textureData['Order']))
         names = ['omega','chi','phi']
         namstr = '  names :'
         ptstr =  '  values:'
@@ -2442,14 +3193,14 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
                 sigstr += '%12.3f'%(SHtextureSig['Sample '+name])
             else:
                 sigstr += 12*' '
-        print namstr
-        print ptstr
-        print sigstr
-        print '\n Texture coefficients:'
+        print (namstr)
+        print (ptstr)
+        print (sigstr)
+        print ('\n Texture coefficients:')
         SHcoeff = textureData['SH Coeff'][1]
-        SHkeys = SHcoeff.keys()
+        SHkeys = list(SHcoeff.keys())
         nCoeff = len(SHcoeff)
-        nBlock = nCoeff/10+1
+        nBlock = nCoeff//10+1
         iBeg = 0
         iFin = min(iBeg+10,nCoeff)
         for block in range(nBlock):
@@ -2464,9 +3215,9 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
                         sigstr += '%12.3f'%(SHtextureSig[name])
                     else:
                         sigstr += 12*' '
-            print namstr
-            print ptstr
-            print sigstr
+            print (namstr)
+            print (ptstr)
+            print (sigstr)
             iBeg += 10
             iFin = min(iBeg+10,nCoeff)
             
@@ -2478,17 +3229,17 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
     def Values2Dict(parmdict, varylist, values):
         ''' Use after call to leastsq to update the parameter dictionary with 
         values corresponding to keys in varylist'''
-        parmdict.update(zip(varylist,values))
+        parmdict.update(list(zip(varylist,values)))
         
     def errSpHarm(values,SGData,cell,Gangls,shModel,refData,parmDict,varyList,pgbar):
-        parmDict.update(zip(varyList,values))
+        parmDict.update(list(zip(varyList,values)))
         Mat = np.empty(0)
         sumObs = 0
         Sangls = [parmDict['Sample '+'omega'],parmDict['Sample '+'chi'],parmDict['Sample '+'phi']]
         for hist in Gangls.keys():
             Refs = refData[hist]
             Refs[:,5] = np.where(Refs[:,5]>0.,Refs[:,5],0.)
-            wt = 1./np.sqrt(np.max(Refs[:,4],.25))
+            wt = 1./np.sqrt(np.fmax(Refs[:,4],.25))
 #            wt = 1./np.max(Refs[:,4],.25)
             sumObs += np.sum(wt*Refs[:,5])
             Refs[:,6] = 1.
@@ -2507,7 +3258,7 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
         sumD = np.sum(np.abs(Mat))
         R = min(100.,100.*sumD/sumObs)
         pgbar.Update(R,newmsg='Residual = %5.2f'%(R))
-        print ' Residual: %.3f%%'%(R)
+        print (' Residual: %.3f%%'%(R))
         return Mat
         
     def dervSpHarm(values,SGData,cell,Gangls,shModel,refData,parmDict,varyList,pgbar):
@@ -2517,7 +3268,7 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
             mat = np.zeros((len(varyList),len(refData[hist])))
             Refs = refData[hist]
             H = Refs[:,:3]
-            wt = 1./np.sqrt(np.max(Refs[:,4],.25))
+            wt = 1./np.sqrt(np.fmax(Refs[:,4],.25))
 #            wt = 1./np.max(Refs[:,4],.25)
             phi,beta = G2lat.CrsAng(H,cell,SGData)
             psi,gam,dPdA,dGdA = G2lat.SamAng(Refs[:,3]/2.,Gangls[hist],Sangls,False) #assume not Bragg-Brentano!
@@ -2538,10 +3289,10 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
                 Mat = np.concatenate((Mat,mat.T))
             else:
                 Mat = mat.T
-        print 'deriv'
+        print ('deriv')
         return Mat
 
-    print ' Fit texture for '+General['Name']
+    print (' Fit texture for '+General['Name'])
     SGData = General['SGData']
     cell = General['Cell'][1:7]
     Texture = General['SH Texture']
@@ -2554,27 +3305,27 @@ def FitTexture(General,Gangls,refData,keyList,pgbar):
         if Texture[item][0]:
             varyList.append(item)
     if Texture['SH Coeff'][0]:
-        varyList += Texture['SH Coeff'][1].keys()
+        varyList += list(Texture['SH Coeff'][1].keys())
     while True:
         begin = time.time()
         values =  np.array(Dict2Values(parmDict, varyList))
         result = so.leastsq(errSpHarm,values,Dfun=dervSpHarm,full_output=True,ftol=1.e-6,
             args=(SGData,cell,Gangls,Texture['Model'],refData,parmDict,varyList,pgbar))
-        ncyc = int(result[2]['nfev']/2)
+        ncyc = int(result[2]['nfev']//2)
         if ncyc:
             runtime = time.time()-begin    
             chisq = np.sum(result[2]['fvec']**2)
             Values2Dict(parmDict, varyList, result[0])
             GOF = chisq/(len(result[2]['fvec'])-len(varyList))       #reduced chi^2
-            print 'Number of function calls:',result[2]['nfev'],' Number of observations: ',len(result[2]['fvec']),' Number of parameters: ',len(varyList)
-            print 'refinement time = %8.3fs, %8.3fs/cycle'%(runtime,runtime/ncyc)
+            print ('Number of function calls: %d Number of observations: %d Number of parameters: %d'%(result[2]['nfev'],len(result[2]['fvec']),len(varyList)))
+            print ('refinement time = %8.3fs, %8.3fs/cycle'%(runtime,runtime/ncyc))
             try:
                 sig = np.sqrt(np.diag(result[1])*GOF)
                 if np.any(np.isnan(sig)):
-                    print '*** Least squares aborted - some invalid esds possible ***'
+                    print ('*** Least squares aborted - some invalid esds possible ***')
                 break                   #refinement succeeded - finish up!
             except ValueError:          #result[1] is None on singular matrix
-                print '**** Refinement failed - singular matrix ****'
+                print ('**** Refinement failed - singular matrix ****')
                 return None
         else:
             break
@@ -2621,7 +3372,7 @@ def OmitMap(data,reflDict,pgbar=None):
     '''
     generalData = data['General']
     if not generalData['Map']['MapType']:
-        print '**** ERROR - Fourier map not defined'
+        print ('**** ERROR - Fourier map not defined')
         return
     mapData = generalData['Map']
     dmin = mapData['Resolution']
@@ -2646,7 +3397,6 @@ def OmitMap(data,reflDict,pgbar=None):
                 b = sind(ph+dp)
                 phasep = complex(a,b)
                 phasem = complex(a,-b)
-                Fo = np.sqrt(Fosq)
                 if '2Fo-Fc' in mapData['MapType']:
                     F = 2.*np.sqrt(Fosq)-np.sqrt(Fcsq)
                 else:
@@ -2657,9 +3407,9 @@ def OmitMap(data,reflDict,pgbar=None):
                 Fhkl[h,k,l] = F*phasem
     rho0 = fft.fftn(fft.fftshift(Fhkl))/cell[6]
     M = np.mgrid[0:4,0:4,0:4]
-    blkIds = np.array(zip(M[0].flatten(),M[1].flatten(),M[2].flatten()))
-    iBeg = blkIds*rho0.shape/4
-    iFin = (blkIds+1)*rho0.shape/4
+    blkIds = np.array(list(zip(M[0].flatten(),M[1].flatten(),M[2].flatten())))
+    iBeg = blkIds*rho0.shape//4
+    iFin = (blkIds+1)*rho0.shape//4
     rho_omit = np.zeros_like(rho0)
     nBlk = 0
     for iB,iF in zip(iBeg,iFin):
@@ -2676,7 +3426,7 @@ def OmitMap(data,reflDict,pgbar=None):
     mapData['rho'] = np.real(rho_omit)/cell[6]
     mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
     mapData['minmax'] = [np.max(mapData['rho']),np.min(mapData['rho'])]
-    print 'Omit map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size)
+    print ('Omit map time: %.4f no. elements: %d'%(time.time()-time0,Fhkl.size))
     return mapData
     
 def FourierMap(data,reflDict):
@@ -2742,7 +3492,7 @@ def FourierMap(data,reflDict):
                     h,k,l = -hkl+Hmax
                     Fhkl[h,k,l] = complex(Fosq,0.)
     rho = fft.fftn(fft.fftshift(Fhkl))/cell[6]
-    print 'Fourier map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size)
+    print ('Fourier map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size))
     mapData['Type'] = reflDict['Type']
     mapData['rho'] = np.real(rho)
     mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
@@ -2813,7 +3563,7 @@ def Fourier4DMap(data,reflDict):
     mapData['rho'] = np.real(rho)
     mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
     mapData['minmax'] = [np.max(mapData['rho']),np.min(mapData['rho'])]
-    print 'Fourier map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size)
+    print ('Fourier map time: %.4f'%(time.time()-time0),'no. elements: %d'%(Fhkl.size))
 
 # map printing for testing purposes
 def printRho(SGLaue,rho,rhoMax):                          
@@ -2834,11 +3584,11 @@ def printRho(SGLaue,rho,rhoMax):
             for i in range(ix):
                 r = int(100*rho[i,j]/rhoMax)
                 line += '%4d'%(r)
-            print line+'\n'
+            print (line+'\n')
     else:
         ix,jy,kz = rho.shape
         for k in range(kz):
-            print 'k = ',k
+            print ('k = %d'%k)
             for j in range(jy):
                 line = ''
                 if SGLaue in ['3','3m1','31m','6/m','6/mmm']:
@@ -2846,7 +3596,7 @@ def printRho(SGLaue,rho,rhoMax):
                 for i in range(ix):
                     r = int(100*rho[i,j,k]/rhoMax)
                     line += '%4d'%(r)
-                print line+'\n'
+                print (line+'\n')
 ## keep this
                 
 def findOffset(SGData,A,Fhkl):    
@@ -2869,13 +3619,11 @@ def findOffset(SGData,A,Fhkl):
         if F == 0.:
             break
         Fdict['%.6f'%(np.absolute(F))] = hkl
-    Flist = np.flipud(np.sort(Fdict.keys()))
+    Flist = np.flipud(np.sort(list(Fdict.keys())))
     F = str(1.e6)
     i = 0
     DH = []
     Dphi = []
-    SGMT = np.array([ops[0].T for ops in SGData['SGOps']])
-    SGT = np.array([ops[1] for ops in SGData['SGOps']])
     Hmax = 2*np.asarray(G2lat.getHKLmax(3.5,SGData,A),dtype='i')
     for F in Flist:
         hkl = np.unravel_index(Fdict[F],hklShape)
@@ -2888,8 +3636,8 @@ def findOffset(SGData,A,Fhkl):
         Phi = np.concatenate((Phi,-Phi))                      # and their phase shifts
         Fh0 = Fhkl[hkl[0],hkl[1],hkl[2]]
         ang0 = np.angle(Fh0,deg=True)/360.
-        for H,phi in zip(Uniq,Phi)[1:]:
-            ang = (np.angle(Fhkl[H[0],H[1],H[2]],deg=True)/360.-phi)
+        for H,phi in list(zip(Uniq,Phi))[1:]:
+            ang = (np.angle(Fhkl[int(H[0]),int(H[1]),int(H[2])],deg=True)/360.-phi)
             dH = H-hkl
             dang = ang-ang0
             DH.append(dH)
@@ -2898,11 +3646,11 @@ def findOffset(SGData,A,Fhkl):
             break
         i += 1
     DH = np.array(DH)
-    print ' map offset no.of terms: %d from %d reflections'%(len(DH),len(Flist))
+    print (' map offset no.of terms: %d from %d reflections'%(len(DH),len(Flist)))
     Dphi = np.array(Dphi)
     steps = np.array(hklShape)
     X,Y,Z = np.mgrid[0:1:1./steps[0],0:1:1./steps[1],0:1:1./steps[2]]
-    XYZ = np.array(zip(X.flatten(),Y.flatten(),Z.flatten()))
+    XYZ = np.array(list(zip(X.flatten(),Y.flatten(),Z.flatten())))
     Dang = (np.dot(XYZ,DH.T)+.5)%1.-Dphi
     Mmap = np.reshape(np.sum((Dang)**2,axis=1),newshape=steps)/len(DH)
     hist,bins = np.histogram(Mmap,bins=1000)
@@ -2910,7 +3658,7 @@ def findOffset(SGData,A,Fhkl):
 #        print item,bins[i]
     chisq = np.min(Mmap)
     DX = -np.array(np.unravel_index(np.argmin(Mmap),Mmap.shape))
-    print ' map offset chi**2: %.3f, map offset: %d %d %d'%(chisq,DX[0],DX[1],DX[2])
+    print (' map offset chi**2: %.3f, map offset: %d %d %d'%(chisq,DX[0],DX[1],DX[2]))
 #    print (np.dot(DX,DH.T)+.5)%1.-Dphi
     return DX
     
@@ -2940,7 +3688,7 @@ def ChargeFlip(data,reflDict,pgbar):
     A = G2lat.cell2A(cell[:6])
     Vol = cell[6]
     im = 0
-    if generalData['Type'] in ['modulated','magnetic',]:
+    if generalData['Modulated'] == True:
         im = 1
     Hmax = np.asarray(G2lat.getHKLmax(dmin,SGData,A),dtype='i')+1
     adjHKLmax(SGData,Hmax)
@@ -2972,15 +3720,17 @@ def ChargeFlip(data,reflDict,pgbar):
                 phasem = complex(a,-b)
                 h,k,l = hkl+Hmax
                 Ehkl[h,k,l] = E*phasep
-                h,k,l = -hkl+Hmax       #Friedel pair refl.
+                h,k,l = -hkl+Hmax
                 Ehkl[h,k,l] = E*phasem
 #    Ehkl[Hmax] = 0.00001           #this to preserve F[0,0,0]
+    testHKL = np.array(flipData['testHKL'])+Hmax
     CEhkl = copy.copy(Ehkl)
     MEhkl = ma.array(Ehkl,mask=(Ehkl==0.0))
     Emask = ma.getmask(MEhkl)
     sumE = np.sum(ma.array(np.absolute(CEhkl),mask=Emask))
     Ncyc = 0
     old = np.seterr(all='raise')
+    twophases = []
     while True:        
         CErho = np.real(fft.fftn(fft.fftshift(CEhkl)))*(1.+0j)
         CEsig = np.std(CErho)
@@ -2989,6 +3739,7 @@ def ChargeFlip(data,reflDict,pgbar):
         CFhkl = fft.ifftshift(fft.ifftn(CFrho))
         CFhkl = np.where(CFhkl,CFhkl,1.0)           #avoid divide by zero
         phase = CFhkl/np.absolute(CFhkl)
+        twophases.append([np.angle(phase[h,k,l]) for h,k,l in testHKL])
         CEhkl = np.absolute(Ehkl)*phase
         Ncyc += 1
         sumCF = np.sum(ma.array(np.absolute(CFhkl),mask=Emask))
@@ -3000,9 +3751,9 @@ def ChargeFlip(data,reflDict,pgbar):
         if not GoOn or Ncyc > 10000:
             break
     np.seterr(**old)
-    print ' Charge flip time: %.4f'%(time.time()-time0),'no. elements: %d'%(Ehkl.size)
+    print (' Charge flip time: %.4f'%(time.time()-time0),'no. elements: %d'%(Ehkl.size))
     CErho = np.real(fft.fftn(fft.fftshift(CEhkl)))/10.  #? to get on same scale as e-map
-    print ' No.cycles = ',Ncyc,'Residual Rcf =%8.3f%s'%(Rcf,'%')+' Map size:',CErho.shape
+    print (' No.cycles = %d Residual Rcf =%8.3f%s Map size: %s'%(Ncyc,Rcf,'%',str(CErho.shape)))
     roll = findOffset(SGData,A,CEhkl)               #CEhkl needs to be just the observed set, not the full set!
         
     mapData['Rcf'] = Rcf
@@ -3010,7 +3761,7 @@ def ChargeFlip(data,reflDict,pgbar):
     mapData['rhoMax'] = max(np.max(mapData['rho']),-np.min(mapData['rho']))
     mapData['minmax'] = [np.max(mapData['rho']),np.min(mapData['rho'])]
     mapData['Type'] = reflDict['Type']
-    return mapData
+    return mapData,twophases
     
 def findSSOffset(SGData,SSGData,A,Fhklm):    
     '''default doc string
@@ -3032,7 +3783,7 @@ def findSSOffset(SGData,SSGData,A,Fhklm):
         if F == 0.:
             break
         Fdict['%.6f'%(np.absolute(F))] = hklm
-    Flist = np.flipud(np.sort(Fdict.keys()))
+    Flist = np.flipud(np.sort(list(Fdict.keys())))
     F = str(1.e6)
     i = 0
     DH = []
@@ -3050,7 +3801,8 @@ def findSSOffset(SGData,SSGData,A,Fhklm):
         Phi = np.concatenate((Phi,-Phi))                      # and their phase shifts
         Fh0 = Fhklm[hklm[0],hklm[1],hklm[2],hklm[3]]
         ang0 = np.angle(Fh0,deg=True)/360.
-        for H,phi in zip(Uniq,Phi)[1:]:
+        for H,phi in list(zip(Uniq,Phi))[1:]:
+            H = np.array(H,dtype=int)
             ang = (np.angle(Fhklm[H[0],H[1],H[2],H[3]],deg=True)/360.-phi)
             dH = H-hklm
             dang = ang-ang0
@@ -3060,11 +3812,11 @@ def findSSOffset(SGData,SSGData,A,Fhklm):
             break
         i += 1
     DH = np.array(DH)
-    print ' map offset no.of terms: %d from %d reflections'%(len(DH),len(Flist))
+    print (' map offset no.of terms: %d from %d reflections'%(len(DH),len(Flist)))
     Dphi = np.array(Dphi)
     steps = np.array(hklmShape)
     X,Y,Z,T = np.mgrid[0:1:1./steps[0],0:1:1./steps[1],0:1:1./steps[2],0:1:1./steps[3]]
-    XYZT = np.array(zip(X.flatten(),Y.flatten(),Z.flatten(),T.flatten()))
+    XYZT = np.array(list(zip(X.flatten(),Y.flatten(),Z.flatten(),T.flatten())))
     Dang = (np.dot(XYZT,DH.T)+.5)%1.-Dphi
     Mmap = np.reshape(np.sum((Dang)**2,axis=1),newshape=steps)/len(DH)
     hist,bins = np.histogram(Mmap,bins=1000)
@@ -3072,7 +3824,7 @@ def findSSOffset(SGData,SSGData,A,Fhklm):
 #        print item,bins[i]
     chisq = np.min(Mmap)
     DX = -np.array(np.unravel_index(np.argmin(Mmap),Mmap.shape))
-    print ' map offset chi**2: %.3f, map offset: %d %d %d %d'%(chisq,DX[0],DX[1],DX[2],DX[3])
+    print (' map offset chi**2: %.3f, map offset: %d %d %d %d'%(chisq,DX[0],DX[1],DX[2],DX[3]))
 #    print (np.dot(DX,DH.T)+.5)%1.-Dphi
     return DX
     
@@ -3098,8 +3850,6 @@ def SSChargeFlip(data,reflDict,pgbar):
     dmin = flipData['Resolution']
     SGData = generalData['SGData']
     SSGData = generalData['SSGData']
-    SGMT = np.array([ops[0].T for ops in SGData['SGOps']])
-    SGT = np.array([ops[1] for ops in SGData['SGOps']])
     SSGMT = np.array([ops[0].T for ops in SSGData['SSGOps']])
     SSGT = np.array([ops[1] for ops in SSGData['SSGOps']])
     cell = generalData['Cell'][1:8]        
@@ -3162,10 +3912,10 @@ def SSChargeFlip(data,reflDict,pgbar):
         if not GoOn or Ncyc > 10000:
             break
     np.seterr(**old)
-    print ' Charge flip time: %.4f'%(time.time()-time0),'no. elements: %d'%(Ehkl.size)
+    print (' Charge flip time: %.4f no. elements: %d'%(time.time()-time0,Ehkl.size))
     CErho = np.real(fft.fftn(fft.fftshift(CEhkl[:,:,:,maxM+1])))/10.    #? to get on same scale as e-map
     SSrho = np.real(fft.fftn(fft.fftshift(CEhkl)))/10.                  #? ditto
-    print ' No.cycles = ',Ncyc,'Residual Rcf =%8.3f%s'%(Rcf,'%')+' Map size:',CErho.shape
+    print (' No.cycles = %d Residual Rcf =%8.3f%s Map size: %s'%(Ncyc,Rcf,'%',str(CErho.shape)))
     roll = findSSOffset(SGData,SSGData,A,CEhkl)               #CEhkl needs to be just the observed set, not the full set!
 
     mapData['Rcf'] = Rcf
@@ -3283,7 +4033,6 @@ def SearchMap(generalData,drawingData,Neg=False):
         
         return Vec,Hess
         
-    phaseName = generalData['Name']
     SGData = generalData['SGData']
     Amat,Bmat = G2lat.cell2AB(generalData['Cell'][1:7])
     peaks = []
@@ -3301,9 +4050,9 @@ def SearchMap(generalData,drawingData,Neg=False):
         res = mapData['Resolution']
         incre = np.array(rho.shape,dtype=np.float)
         step = max(1.0,1./res)+1
-        steps = np.array(3*[step,])
+        steps = np.array((3*[step,]),dtype='int32')
     except KeyError:
-        print '**** ERROR - Fourier map not defined'
+        print ('**** ERROR - Fourier map not defined')
         return peaks,mags
     rhoMask = ma.array(rho,mask=(rho<contLevel))
     indices = (-1,0,1)
@@ -3318,15 +4067,14 @@ def SearchMap(generalData,drawingData,Neg=False):
         rho = rollMap(rho,ind)
         rMM = mapHalf-steps
         rMP = mapHalf+steps+1
-        rhoPeak = rho[rMM[0]:rMP[0],rMM[1]:rMP[1],rMM[2]:rMP[2]]
+        rhoPeak = rho[int(rMM[0]):int(rMP[0]),int(rMM[1]):int(rMP[1]),int(rMM[2]):int(rMP[2])]
         peakInt = np.sum(rhoPeak)*res**3
-        rX,rY,rZ = np.mgrid[rMM[0]:rMP[0],rMM[1]:rMP[1],rMM[2]:rMP[2]]
+        rX,rY,rZ = np.mgrid[int(rMM[0]):int(rMP[0]),int(rMM[1]):int(rMP[1]),int(rMM[2]):int(rMP[2])]
         x0 = [peakInt,mapHalf[0],mapHalf[1],mapHalf[2],2.0]          #magnitude, position & width(sig)
         result = HessianLSQ(peakFunc,x0,Hess=peakHess,
             args=(rX,rY,rZ,rhoPeak,res,SGData['SGLaue']),ftol=.01,maxcyc=10)
         x1 = result[0]
         if not np.any(x1 < 0):
-            mag = x1[0]
             peak = (np.array(x1[1:4])-ind)/incre
         peak = fixSpecialPos(peak,SGData,Amat)
         rho = rollMap(rho,-ind)
@@ -3373,9 +4121,7 @@ def PeaksEquiv(data,Ind):
         return False
                             
     generalData = data['General']
-    cell = generalData['Cell'][1:7]
     Amat,Bmat = G2lat.cell2AB(generalData['Cell'][1:7])
-    A = G2lat.cell2A(cell)
     SGData = generalData['SGData']
     mapPeaks = data['Map Peaks']
     XYZ = np.array([xyz[1:4] for xyz in mapPeaks])
@@ -3408,9 +4154,7 @@ def PeaksUnique(data,Ind):
         return True
                             
     generalData = data['General']
-    cell = generalData['Cell'][1:7]
     Amat,Bmat = G2lat.cell2AB(generalData['Cell'][1:7])
-    A = G2lat.cell2A(cell)
     SGData = generalData['SGData']
     mapPeaks = data['Map Peaks']
     Indx = {}
@@ -3437,23 +4181,23 @@ def PeaksUnique(data,Ind):
 ################################################################################
 
 def getCWsig(ins,pos):
-    '''get CW peak profile sigma
+    '''get CW peak profile sigma^2
     
     :param dict ins: instrument parameters with at least 'U', 'V', & 'W' 
       as values only
     :param float pos: 2-theta of peak
-    :returns: float getCWsig: peak sigma
+    :returns: float getCWsig: peak sigma^2
     
     '''
     tp = tand(pos/2.0)
     return ins['U']*tp**2+ins['V']*tp+ins['W']
     
 def getCWsigDeriv(pos):
-    '''get derivatives of CW peak profile sigma wrt U,V, & W
+    '''get derivatives of CW peak profile sigma^2 wrt U,V, & W
     
     :param float pos: 2-theta of peak
     
-    :returns: list getCWsigDeriv: d(sig)/dU, d(sig)/dV & d(sig)/dW
+    :returns: list getCWsigDeriv: d(sig^2)/dU, d(sig)/dV & d(sig)/dW
     
     '''
     tp = tand(pos/2.0)
@@ -3462,67 +4206,67 @@ def getCWsigDeriv(pos):
 def getCWgam(ins,pos):
     '''get CW peak profile gamma
     
-    :param dict ins: instrument parameters with at least 'X' & 'Y' 
+    :param dict ins: instrument parameters with at least 'X', 'Y' & 'Z'
       as values only
     :param float pos: 2-theta of peak
     :returns: float getCWgam: peak gamma
     
     '''
-    return ins['X']/cosd(pos/2.0)+ins['Y']*tand(pos/2.0)
+    return ins['X']/cosd(pos/2.0)+ins['Y']*tand(pos/2.0)+ins['Z']
     
 def getCWgamDeriv(pos):
-    '''get derivatives of CW peak profile gamma wrt X & Y
+    '''get derivatives of CW peak profile gamma wrt X, Y & Z
     
     :param float pos: 2-theta of peak
     
     :returns: list getCWgamDeriv: d(gam)/dX & d(gam)/dY
     
     '''
-    return 1./cosd(pos/2.0),tand(pos/2.0)
+    return 1./cosd(pos/2.0),tand(pos/2.0),1.0
     
 def getTOFsig(ins,dsp):
-    '''get TOF peak profile sigma
+    '''get TOF peak profile sigma^2
     
     :param dict ins: instrument parameters with at least 'sig-0', 'sig-1' & 'sig-q'
       as values only
     :param float dsp: d-spacing of peak
     
-    :returns: float getTOFsig: peak sigma
+    :returns: float getTOFsig: peak sigma^2
     
     '''
-    return ins['sig-0']+ins['sig-1']*dsp**2+ins['sig-2']*dsp**4+ins['sig-q']/dsp**2
+    return ins['sig-0']+ins['sig-1']*dsp**2+ins['sig-2']*dsp**4+ins['sig-q']*dsp
     
 def getTOFsigDeriv(dsp):
-    '''get derivatives of TOF peak profile gamma wrt sig-0, sig-1, & sig-q
+    '''get derivatives of TOF peak profile sigma^2 wrt sig-0, sig-1, & sig-q
     
     :param float dsp: d-spacing of peak
     
     :returns: list getTOFsigDeriv: d(sig0/d(sig-0), d(sig)/d(sig-1) & d(sig)/d(sig-q)
     
     '''
-    return 1.0,dsp**2,dsp**4,1./dsp**2
+    return 1.0,dsp**2,dsp**4,dsp
     
 def getTOFgamma(ins,dsp):
     '''get TOF peak profile gamma
     
-    :param dict ins: instrument parameters with at least 'X' & 'Y'
+    :param dict ins: instrument parameters with at least 'X', 'Y' & 'Z'
       as values only
     :param float dsp: d-spacing of peak
     
     :returns: float getTOFgamma: peak gamma
     
     '''
-    return ins['X']*dsp+ins['Y']*dsp**2
+    return ins['Z']+ins['X']*dsp+ins['Y']*dsp**2
     
 def getTOFgammaDeriv(dsp):
-    '''get derivatives of TOF peak profile gamma wrt X & Y
+    '''get derivatives of TOF peak profile gamma wrt X, Y & Z
     
     :param float dsp: d-spacing of peak
     
     :returns: list getTOFgammaDeriv: d(gam)/dX & d(gam)/dY
     
     '''
-    return dsp,dsp**2
+    return dsp,dsp**2,1.0
     
 def getTOFbeta(ins,dsp):
     '''get TOF peak profile beta
@@ -3588,11 +4332,11 @@ def setPeakparms(Parms,Parms2,pos,mag,ifQ=False,useFit=False):
     if useFit:
         ind = 1
     ins = {}
-    if 'C' in Parms['Type'][0]:                            #CW data - TOF later in an elif
-        for x in ['U','V','W','X','Y']:
+    if 'C' in Parms['Type'][0]:                            #CW data - TOF later in an else
+        for x in ['U','V','W','X','Y','Z']:
             ins[x] = Parms[x][ind]
         if ifQ:                              #qplot - convert back to 2-theta
-            pos = 2.0*asind(pos*wave/(4*math.pi))
+            pos = 2.0*asind(pos*getWave(Parms)/(4*math.pi))
         sig = getCWsig(ins,pos)
         gam = getCWgam(ins,pos)           
         XY = [pos,0, mag,1, sig,0, gam,0]       #default refine intensity 1st
@@ -3603,13 +4347,13 @@ def setPeakparms(Parms,Parms2,pos,mag,ifQ=False,useFit=False):
         else:
             dsp = pos/Parms['difC'][1]
         if 'Pdabc' in Parms2:
-            for x in ['sig-0','sig-1','sig-2','sig-q','X','Y']:
+            for x in ['sig-0','sig-1','sig-2','sig-q','X','Y','Z']:
                 ins[x] = Parms[x][ind]
             Pdabc = Parms2['Pdabc'].T
             alp = np.interp(dsp,Pdabc[0],Pdabc[1])
             bet = np.interp(dsp,Pdabc[0],Pdabc[2])
         else:
-            for x in ['alpha','beta-0','beta-1','beta-q','sig-0','sig-1','sig-2','sig-q','X','Y']:
+            for x in ['alpha','beta-0','beta-1','beta-q','sig-0','sig-1','sig-2','sig-q','X','Y','Z']:
                 ins[x] = Parms[x][ind]
             alp = getTOFalpha(ins,dsp)
             bet = getTOFbeta(ins,dsp)
@@ -3628,8 +4372,8 @@ def setPeakparms(Parms,Parms2,pos,mag,ifQ=False,useFit=False):
 
 
 import numpy
-from numpy import asarray, tan, exp, ones, squeeze, sign, \
-     all, log, sqrt, pi, shape, array, minimum, where
+from numpy import asarray, exp, squeeze, sign, \
+     all, shape, array, where
 from numpy import random
 
 #__all__ = ['anneal']
@@ -3639,9 +4383,8 @@ _double_max = numpy.finfo(float).max
 class base_schedule(object):
     def __init__(self):
         self.dwell = 20
-        self.learn_rate = 0.5
-        self.lower = -10
-        self.upper = 10
+        self.lower = 0.
+        self.upper = 1.
         self.Ninit = 50
         self.accepted = 0
         self.tests = 0
@@ -3664,14 +4407,10 @@ class base_schedule(object):
         """ Find a matching starting temperature and starting parameters vector
         i.e. find x0 such that func(x0) = T0.
 
-        Parameters
-        ----------
-        best_state : _state
+        :param best_state: _state
             A _state object to store the function value and x0 found.
 
-        returns
-        -------
-        x0 : array
+        :returns: x0 : array
             The starting parameters vector.
         """
 
@@ -3705,7 +4444,7 @@ class base_schedule(object):
         if dE < 0:
             self.accepted += 1
             return 1
-        p = exp(-dE*1.0/self.boltzmann/T)
+        p = exp(-dE*1.0/T)
         if (p > random.uniform(0.0, 1.0)):
             self.accepted += 1
             return 1
@@ -3717,16 +4456,9 @@ class base_schedule(object):
     def update_temp(self, x0):
         pass
 
-
-#  A schedule due to Lester Ingber modified to use bounds - OK
 class fast_sa(base_schedule):
     def init(self, **options):
         self.__dict__.update(options)
-        if self.m is None:
-            self.m = 1.0
-        if self.n is None:
-            self.n = 1.0
-        self.c = self.m * exp(-self.n * self.quench)
 
     def update_guess(self, x0):
         x0 = asarray(x0)
@@ -3735,45 +4467,10 @@ class fast_sa(base_schedule):
         xc = (sign(u-0.5)*T*((1+1.0/T)**abs(2*u-1)-1.0)+1.0)/2.0
         xnew = xc*(self.upper - self.lower)+self.lower
         return xnew
-#        y = sign(u-0.5)*T*((1+1.0/T)**abs(2*u-1)-1.0)
-#        xc = y*(self.upper - self.lower)
-#        xnew = x0 + xc
-#        return xnew
 
     def update_temp(self):
         self.T = self.T0*exp(-self.c * self.k**(self.quench))
         self.k += 1
-        return
-
-class cauchy_sa(base_schedule):     #modified to use bounds - not good
-    def update_guess(self, x0):
-        x0 = asarray(x0)
-        numbers = squeeze(random.uniform(-pi/4, pi/4, size=self.dims))
-        xc = (1.+(self.learn_rate * self.T * tan(numbers))%1.)
-        xnew = xc*(self.upper - self.lower)+self.lower
-        return xnew
-#        numbers = squeeze(random.uniform(-pi/2, pi/2, size=self.dims))
-#        xc = self.learn_rate * self.T * tan(numbers)
-#        xnew = x0 + xc
-#        return xnew
-
-    def update_temp(self):
-        self.T = self.T0/(1+self.k)
-        self.k += 1
-        return
-
-class boltzmann_sa(base_schedule):
-#    def update_guess(self, x0):
-#        std = minimum(sqrt(self.T)*ones(self.dims), (self.upper-self.lower)/3.0/self.learn_rate)
-#        x0 = asarray(x0)
-#        xc = squeeze(random.normal(0, 1.0, size=self.dims))
-#
-#        xnew = x0 + xc*std*self.learn_rate
-#        return xnew
-
-    def update_temp(self):
-        self.k += 1
-        self.T = self.T0 / log(self.k+1.0)
         return
 
 class log_sa(base_schedule):        #OK
@@ -3781,8 +4478,12 @@ class log_sa(base_schedule):        #OK
     def init(self,**options):
         self.__dict__.update(options)
         
-    def update_guess(self,x0):     #same as default
-        return np.squeeze(np.random.uniform(0.,1.,size=self.dims))*(self.upper-self.lower)+self.lower
+    def update_guess(self,x0):     #same as default #TODO - is this a reasonable update procedure?
+        u = squeeze(random.uniform(0.0, 1.0, size=self.dims))
+        T = self.T
+        xc = (sign(u-0.5)*T*((1+1.0/T)**abs(2*u-1)-1.0)+1.0)/2.0
+        xnew = xc*(self.upper - self.lower)+self.lower
+        return xnew
         
     def update_temp(self):
         self.k += 1
@@ -3793,16 +4494,29 @@ class _state(object):
         self.x = None
         self.cost = None
 
-# TODO:
-#     allow for general annealing temperature profile
-#     in that case use update given by alpha and omega and
-#     variation of all previous updates and temperature?
-
-# Simulated annealing
-
-def anneal(func, x0, args=(), schedule='fast', full_output=0,
+def makeTsched(data):
+    if data['Algorithm'] == 'fast':
+        sched = fast_sa()
+        sched.quench = data['fast parms'][0]
+        sched.c = data['fast parms'][1]
+    elif data['Algorithm'] == 'log':
+        sched = log_sa()
+        sched.slope = data['log slope']
+    sched.T0 = data['Annealing'][0]
+    if not sched.T0:
+        sched.T0 = 50.
+    Tf = data['Annealing'][1]
+    if not Tf:
+        Tf = 0.001
+    Tsched = [sched.T0,]
+    while Tsched[-1] > Tf:
+        sched.update_temp()
+        Tsched.append(sched.T)
+    return Tsched[1:]
+    
+def anneal(func, x0, args=(), schedule='fast', 
            T0=None, Tf=1e-12, maxeval=None, maxaccept=None, maxiter=400,
-           boltzmann=1.0, learn_rate=0.5, feps=1e-6, quench=1.0, m=1.0, n=1.0,
+           feps=1e-6, quench=1.0, c=1.0,
            lower=-100, upper=100, dwell=50, slope=0.9,ranStart=False,
            ranRange=0.10,autoRan=False,dlg=None):
     """Minimize a function using simulated annealing.
@@ -3818,8 +4532,6 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         Extra parameters to `func`.
     :param base_schedule schedule: 
         Annealing schedule to use (a class).
-    :param bool full_output:
-        Whether to return optional outputs.
     :param float T0: 
         Initial Temperature (estimated as 1.2 times the largest
         cost-function deviation over random points in the range).
@@ -3831,15 +4543,10 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         Maximum changes to accept.
     :param int maxiter: 
         Maximum cooling iterations.
-    :param float learn_rate:
-        Scale constant for adjusting guesses.
-    :param float boltzmann: 
-        Boltzmann constant in acceptance test
-        (increase for less stringent test at each temperature).
     :param float feps:
         Stopping relative error tolerance for the function value in
         last four coolings.
-    :param float quench,m,n:
+    :param float quench,c:
         Parameters to alter fast_sa schedule.
     :param float/ndarray lower,upper: 
         Lower and upper bounds on `x`.
@@ -3885,7 +4592,7 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
     We give a brief description of how the three temperature schedules
     generate new points and vary their temperature. Temperatures are
     only updated with iterations in the outer loop. The inner loop is
-    over xrange(dwell), and new points are generated for
+    over range(dwell), and new points are generated for
     every iteration in the inner loop. (Though whether the proposed
     new points are accepted is probabilistic.)
 
@@ -3901,36 +4608,37 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         xc = y * (upper - lower)
         x_new = x_old + xc
 
-        c = n * exp(-n * quench)
         T_new = T0 * exp(-c * k**quench)
 
-
-    In the 'cauchy' schedule the updates are ::
-
-        u ~ Uniform(-pi/2, pi/2, size=d)
-        xc = learn_rate * T * tan(u)
-        x_new = x_old + xc
-
-        T_new = T0 / (1+k)
-
-    In the 'boltzmann' schedule the updates are ::
-
-        std = minimum( sqrt(T) * ones(d), (upper-lower) / (3*learn_rate) )
-        y ~ Normal(0, std, size=d)
-        x_new = x_old + learn_rate * y
-
-        T_new = T0 / log(1+k)
-
     """
+    
+    ''' Scipy license:
+        Copyright (c) 2001, 2002 Enthought, Inc.
+    All rights reserved.
+    
+    Copyright (c) 2003-2016 SciPy Developers.
+    All rights reserved.
+    
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+    
+      a. Redistributions of source code must retain the above copyright notice,
+         this list of conditions and the following disclaimer.
+      b. Redistributions in binary form must reproduce the above copyright
+         notice, this list of conditions and the following disclaimer in the
+         documentation and/or other materials provided with the distribution.
+      c. Neither the name of Enthought nor the names of the SciPy Developers
+         may be used to endorse or promote products derived from this software
+         without specific prior written permission.
+    '''
     x0 = asarray(x0)
     lower = asarray(lower)
     upper = asarray(upper)
 
     schedule = eval(schedule+'_sa()')
     #   initialize the schedule
-    schedule.init(dims=shape(x0),func=func,args=args,boltzmann=boltzmann,T0=T0,
-                  learn_rate=learn_rate, lower=lower, upper=upper,
-                  m=m, n=n, quench=quench, dwell=dwell, slope=slope)
+    schedule.init(dims=shape(x0),func=func,args=args,T0=T0,lower=lower, upper=upper,
+        c=c, quench=quench, dwell=dwell, slope=slope)
 
     current_state, last_state, best_state = _state(), _state(), _state()
     if ranStart:
@@ -3956,7 +4664,7 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
     bestn = 0
     while keepGoing:
         retval = 0
-        for n in xrange(dwell):
+        for n in range(dwell):
             current_state.x = schedule.update_guess(last_state.x)
             current_state.cost = func(current_state.x,*args)
             schedule.feval += 1
@@ -3996,67 +4704,74 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         fqueue.pop(0)
         af = asarray(fqueue)*1.0
         if retval == 5:
-            print ' User terminated run; incomplete MC/SA'
+            print (' User terminated run; incomplete MC/SA')
             keepGoing = False
             break
         if all(abs((af-af[0])/af[0]) < feps):
             retval = 0
             if abs(af[-1]-best_state.cost) > feps*10:
                 retval = 5
-#                print "Warning: Cooled to %f at %s but this is not" \
-#                      % (squeeze(last_state.cost), str(squeeze(last_state.x))) \
-#                      + " the smallest point found."
+                print (" Warning: Cooled to %.4f > selected Tmin %.4f in %d steps"%(squeeze(last_state.cost),Tf,iters-1))
             break
         if (Tf is not None) and (schedule.T < Tf):
+#            print ' Minimum T reached in %d steps'%(iters-1)
             retval = 1
             break
         if (maxeval is not None) and (schedule.feval > maxeval):
             retval = 2
             break
         if (iters > maxiter):
-            print "Warning: Maximum number of iterations exceeded."
+            print  (" Warning: Maximum number of iterations exceeded.")
             retval = 3
             break
         if (maxaccept is not None) and (schedule.accepted > maxaccept):
             retval = 4
             break
 
-    if full_output:
-        return best_state.x, best_state.cost, schedule.T, \
-               schedule.feval, iters, schedule.accepted, retval
-    else:
-        return best_state.x, retval
+    return best_state.x, best_state.cost, schedule.T, \
+           schedule.feval, iters, schedule.accepted, retval
 
-def worker(iCyc,data,RBdata,reflType,reflData,covData,out_q,nprocess=-1):
+def worker(iCyc,data,RBdata,reflType,reflData,covData,out_q,out_t,out_n,nprocess=-1):
     outlist = []
+    timelist = []
+    nsflist = []
     random.seed(int(time.time())%100000+nprocess)   #make sure each process has a different random start
     for n in range(iCyc):
-        result = mcsaSearch(data,RBdata,reflType,reflData,covData,None)
+        result = mcsaSearch(data,RBdata,reflType,reflData,covData,None,False)         #mcsa result,time,rcov
         outlist.append(result[0])
-        print ' MC/SA residual: %.3f%% structure factor time: %.3f'%(100*result[0][2],result[1])
+        timelist.append(result[1])
+        nsflist.append(result[2])
+        print (' MC/SA final fit: %.3f%% structure factor time: %.3f'%(100*result[0][2],result[1]))
     out_q.put(outlist)
+    out_t.put(timelist)
+    out_n.put(nsflist)
 
-def MPmcsaSearch(nCyc,data,RBdata,reflType,reflData,covData):
+def MPmcsaSearch(nCyc,data,RBdata,reflType,reflData,covData,nprocs):
     import multiprocessing as mp
     
-    nprocs = mp.cpu_count()
     out_q = mp.Queue()
+    out_t = mp.Queue()
+    out_n = mp.Queue()
     procs = []
+    totsftime = 0.
+    totnsf = 0
     iCyc = np.zeros(nprocs)
     for i in range(nCyc):
         iCyc[i%nprocs] += 1
     for i in range(nprocs):
-        p = mp.Process(target=worker,args=(int(iCyc[i]),data,RBdata,reflType,reflData,covData,out_q,i))
+        p = mp.Process(target=worker,args=(int(iCyc[i]),data,RBdata,reflType,reflData,covData,out_q,out_t,out_n,i))
         procs.append(p)
         p.start()
     resultlist = []
     for i in range(nprocs):
         resultlist += out_q.get()
+        totsftime += np.sum(out_t.get())
+        totnsf += np.sum(out_n.get())
     for p in procs:
         p.join()
-    return resultlist
+    return resultlist,totsftime,totnsf
 
-def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
+def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar,start=True):
     '''default doc string
     
     :param type name: description
@@ -4064,8 +4779,26 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
     :returns: type name: description
     '''
    
-    global tsum
+    class RandomDisplacementBounds(object):
+        """random displacement with bounds"""
+        def __init__(self, xmin, xmax, stepsize=0.5):
+            self.xmin = xmin
+            self.xmax = xmax
+            self.stepsize = stepsize
+    
+        def __call__(self, x):
+            """take a random step but ensure the new position is within the bounds"""
+            while True:
+                # this could be done in a much more clever way, but it will work for example purposes
+                steps = self.xmax-self.xmin
+                xnew = x + np.random.uniform(-self.stepsize*steps, self.stepsize*steps, np.shape(x))
+                if np.all(xnew < self.xmax) and np.all(xnew > self.xmin):
+                    break
+            return xnew
+    
+    global tsum,nsum
     tsum = 0.
+    nsum = 0
     
     def getMDparms(item,pfx,parmDict,varyList):
         parmDict[pfx+'MDaxis'] = item['axis']
@@ -4258,9 +4991,10 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
             ParmDict: [dict] problem parameters
         puts result F^2 in each ref[5] in refList
         returns:
-            delt-F*rcov*delt-F/sum(Fo^2)^2
-        '''       
-        global tsum
+            delt-F*rcov*delt-F/sum(Fo^2)
+        '''   
+            
+        global tsum,nsum
         t0 = time.time()
         parmDict.update(dict(zip(varyList,values)))             #update parameter tables
         Xdata = GetAtomX(RBdata,parmDict)                       #get new atom coords from RB
@@ -4279,9 +5013,13 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
         refList[6] = refList[4]-refList[5]
         M = np.inner(refList[6],np.inner(rcov,refList[6]))
         tsum += (time.time()-t0)
-        return M/np.sum(refList[4]**2)
+        nsum += 1
+        return np.sqrt(M/np.sum(refList[4]**2))
+    
+    def MCSAcallback(x, f,accept):
+        return not pgbar.Update(min(100.,f*100),
+            newmsg='%s%8.4f%s'%('MC/SA Residual:',f*100,'%'))[0]
 
-    sq8ln2 = np.sqrt(8*np.log(2))
     sq2pi = np.sqrt(2*np.pi)
     sq4pi = np.sqrt(4*np.pi)
     generalData = data['General']
@@ -4310,7 +5048,6 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
     parmDict['nfixAt'] = len(fixAtoms)        
     MCSA = generalData['MCSA controls']
     reflName = MCSA['Data source']
-    phaseName = generalData['Name']
     MCSAObjs = data['MCSA']['Models']               #list of MCSA models
     upper = []
     lower = []
@@ -4343,7 +5080,8 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
         for ref in reflData:
             h,k,l,m,d,pos,sig,gam,f = ref[:9]
             if d >= MCSA['dmin']:
-                sig = G2pwd.getgamFW(sig,gam)/sq8ln2        #--> sig from FWHM
+                sig = np.sqrt(sig)      #var -> sig in centideg
+                sig = .01*G2pwd.getgamFW(gam,sig)        #sig,gam -> FWHM in deg
                 SQ = 0.25/d**2
                 allFF.append(allM*[G2el.getFFvalues(FFtables,SQ,True)[i] for i in allT]/np.max(allM))
                 refs.append([h,k,l,m,f*m,pos,sig])
@@ -4408,26 +5146,37 @@ def mcsaSearch(data,RBdata,reflType,reflData,covData,pgbar):
         rcov = np.identity(len(refs))
     allFF = np.array(allFF).T
     refs = np.array(refs).T
-    print ' Minimum d-spacing used: %.2f No. reflections used: %d'%(MCSA['dmin'],nRef)
-    print ' Number of parameters varied: %d'%(len(varyList))
+    if start:
+        print (' Minimum d-spacing used: %.2f No. reflections used: %d'%(MCSA['dmin'],nRef))
+        print (' Number of parameters varied: %d'%(len(varyList)))
+        start = False
     parmDict['sumFosq'] = sumFosq
     x0 = [parmDict[val] for val in varyList]
     ifInv = SGData['SGInv']
-    # consider replacing anneal with scipy.optimize.basinhopping
-    results = anneal(mcsaCalc,x0,args=(refs,rcov,cosTable,ifInv,allFF,RBdata,varyList,parmDict),
-        schedule=MCSA['Algorithm'], full_output=True,
-        T0=MCSA['Annealing'][0], Tf=MCSA['Annealing'][1],dwell=MCSA['Annealing'][2],
-        boltzmann=MCSA['boltzmann'], learn_rate=0.5,  
-        quench=MCSA['fast parms'][0], m=MCSA['fast parms'][1], n=MCSA['fast parms'][2],
-        lower=lower, upper=upper, slope=MCSA['log slope'],ranStart=MCSA.get('ranStart',False),
-        ranRange=MCSA.get('ranRange',0.10),autoRan=MCSA.get('autoRan',False),dlg=pgbar)
-    M = mcsaCalc(results[0],refs,rcov,cosTable,ifInv,allFF,RBdata,varyList,parmDict)
-#    for ref in refs.T:
-#        print ' %4d %4d %4d %10.3f %10.3f %10.3f'%(int(ref[0]),int(ref[1]),int(ref[2]),ref[4],ref[5],ref[6])
-#    print np.sqrt((np.sum(refs[6]**2)/np.sum(refs[4]**2)))
-    Result = [False,False,results[1],results[2],]+list(results[0])
+    bounds = np.array(list(zip(lower,upper)))
+    if MCSA['Algorithm'] == 'Basin Hopping':
+#        import basinhopping as bs
+        take_step = RandomDisplacementBounds(np.array(lower), np.array(upper))
+        results = so.basinhopping(mcsaCalc,x0,take_step=take_step,disp=True,T=MCSA['Annealing'][0],
+                interval=MCSA['Annealing'][2]/10,niter=MCSA['Annealing'][2],minimizer_kwargs={'method':'L-BFGS-B','bounds':bounds,
+                'args':(refs,rcov,cosTable,ifInv,allFF,RBdata,varyList,parmDict)},callback=MCSAcallback)
+    else:
+        T0 = MCSA['Annealing'][0]
+        if not T0:
+            T0 = None
+        results = anneal(mcsaCalc,x0,args=(refs,rcov,cosTable,ifInv,allFF,RBdata,varyList,parmDict),
+            schedule=MCSA['Algorithm'], dwell=MCSA['Annealing'][2],maxiter=10000,
+            T0=T0, Tf=MCSA['Annealing'][1],
+            quench=MCSA['fast parms'][0], c=MCSA['fast parms'][1], 
+            lower=lower, upper=upper, slope=MCSA['log slope'],ranStart=MCSA.get('ranStart',False),
+            ranRange=MCSA.get('ranRange',10.)/100.,autoRan=MCSA.get('autoRan',False),dlg=pgbar)
+        print (' Acceptance rate: %.2f%% MCSA residual: %.2f%%'%(100.*results[5]/results[3],100.*results[1]))
+        results = so.minimize(mcsaCalc,results[0],method='L-BFGS-B',args=(refs,rcov,cosTable,ifInv,allFF,RBdata,varyList,parmDict),
+            bounds=bounds,)
+    mcsaCalc(results['x'],refs,rcov,cosTable,ifInv,allFF,RBdata,varyList,parmDict)
+    Result = [False,False,results['fun'],0.0,]+list(results['x'])
     Result.append(varyList)
-    return Result,tsum
+    return Result,tsum,nsum,rcov
 
         
 ################################################################################
@@ -4508,7 +5257,7 @@ def AV2Q(A,V):
     Q = np.zeros(4)
     d = nl.norm(np.array(V))
     if d:
-        V /= d
+        V = V/d
         if not A:       #==0.
             A = 2.*np.pi
         p = A/2.
@@ -4527,7 +5276,7 @@ def AVdeg2Q(A,V):
     if not A:       #== 0.!
         A = 360.
     if d:
-        V /= d
+        V = V/d
         p = A/2.
         Q[0] = cosd(p)
         Q[1:4] = V*sind(p)
@@ -4541,7 +5290,7 @@ def Q2AVdeg(Q):
     '''
     A = 2.*acosd(Q[0])
     V = np.array(Q[1:])
-    V /= sind(A/2.)
+    V = V/sind(A/2.)
     return A,V
     
 def Q2AV(Q):
@@ -4550,7 +5299,7 @@ def Q2AV(Q):
     '''
     A = 2.*np.arccos(Q[0])
     V = np.array(Q[1:])
-    V /= np.sin(A/2.)
+    V = V/np.sin(A/2.)
     return A,V
     
 def randomQ(r0,r1,r2,r3):
@@ -4582,15 +5331,15 @@ def makeQuat(A,B,C):
     V1 = np.cross(A,C)
     V2 = np.cross(B,C)
     if nl.norm(V1)*nl.norm(V2):
-        V1 /= nl.norm(V1)
-        V2 /= nl.norm(V2)
+        V1 = V1/nl.norm(V1)
+        V2 = V2/nl.norm(V2)
         V3 = np.cross(V1,V2)
     else:
         V3 = np.zeros(3)
     Q = np.array([0.,0.,0.,1.])
     D = 0.
     if nl.norm(V3):
-        V3 /= nl.norm(V3)
+        V3 = V3/nl.norm(V3)
         D1 = min(1.0,max(-1.0,np.vdot(V1,V2)))
         D = np.arccos(D1)/2.0
         V1 = C-V3
@@ -4609,16 +5358,15 @@ def annealtests():
     from numpy import cos
     # minimum expected at ~-0.195
     func = lambda x: cos(14.5*x-0.3) + (x+0.2)*x
-    print anneal(func,1.0,full_output=1,upper=3.0,lower=-3.0,feps=1e-4,maxiter=2000,schedule='cauchy')
-    print anneal(func,1.0,full_output=1,upper=3.0,lower=-3.0,feps=1e-4,maxiter=2000,schedule='fast')
-    print anneal(func,1.0,full_output=1,upper=3.0,lower=-3.0,feps=1e-4,maxiter=2000,schedule='boltzmann')
+    print (anneal(func,1.0,full_output=1,upper=3.0,lower=-3.0,feps=1e-4,maxiter=2000,schedule='cauchy'))
+    print (anneal(func,1.0,full_output=1,upper=3.0,lower=-3.0,feps=1e-4,maxiter=2000,schedule='fast'))
+    print (anneal(func,1.0,full_output=1,upper=3.0,lower=-3.0,feps=1e-4,maxiter=2000,schedule='boltzmann'))
 
     # minimum expected at ~[-0.195, -0.1]
     func = lambda x: cos(14.5*x[0]-0.3) + (x[1]+0.2)*x[1] + (x[0]+0.2)*x[0]
-    print anneal(func,[1.0, 1.0],full_output=1,upper=[3.0, 3.0],lower=[-3.0, -3.0],feps=1e-4,maxiter=2000,schedule='cauchy')
-    print anneal(func,[1.0, 1.0],full_output=1,upper=[3.0, 3.0],lower=[-3.0, -3.0],feps=1e-4,maxiter=2000,schedule='fast')
-    print anneal(func,[1.0, 1.0],full_output=1,upper=[3.0, 3.0],lower=[-3.0, -3.0],feps=1e-4,maxiter=2000,schedule='boltzmann')
-
+    print (anneal(func,[1.0, 1.0],full_output=1,upper=[3.0, 3.0],lower=[-3.0, -3.0],feps=1e-4,maxiter=2000,schedule='cauchy'))
+    print (anneal(func,[1.0, 1.0],full_output=1,upper=[3.0, 3.0],lower=[-3.0, -3.0],feps=1e-4,maxiter=2000,schedule='fast'))
+    print (anneal(func,[1.0, 1.0],full_output=1,upper=[3.0, 3.0],lower=[-3.0, -3.0],feps=1e-4,maxiter=2000,schedule='boltzmann'))
 
 if __name__ == '__main__':
     annealtests()
