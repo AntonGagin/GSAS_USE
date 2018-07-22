@@ -23,7 +23,7 @@ For details of the *GSAS-II* package, refer to [Toby, B. H. & Von Dreele, R. B. 
 
 ***
 
-##<a name="installation"></a>Installation
+## <a name="installation"></a>Installation
 
 To apply this patch, place the ***patchSystErrors*** folder in your *GSAS-II* local folder and run **\_\_apply_patch\_\_.py**, or print
 ```r
@@ -52,8 +52,7 @@ To restore the original *GSAS-II*-files, run **\_\_restore\_original\_\_.py**.
 
 To update patch, run **\_\_update\_patch\_\_.py**.
 
-
-##<a name="usage"></a> Usage
+## <a name="usage"></a>Usage
 
 After the patch has been  applied, start *GSAS-II* normally. In **Controls** menu specify the correction parameters. If several histograms are refined simultaneously, list these parameters, separated by commas, in the order corresponding to the order of the histograms (it may not correspond to their order on the data tree). If you wish to the same value of the parameter for all histograms, enter a single number. Set $E\_mu$, $E\_beta$ or $s$ to zero, if you do not want to apply a particular correction (multiplicative, additive, or peak-shape.) 
 
@@ -63,7 +62,7 @@ If you click on *Correlation length l\_delta* field, the  *estimate it as FWHM /
 
 To start a Bayesian-corrected refinement, select **Calculate/Refine** in the *GSAS-II* data tree window. To see refinement results, select **Data/Open .lst file** or **Data/Compare standard and Bayesian fits**.
 
-##<a name="description"></a> Description
+## <a name="description"></a>Description
 
 * The multiplicative correction $\mu(x)$ is approximated by a set of $E_{\mu}$ cubic spline functions $\phi_j^{(\mu)}(x)$
 $$
