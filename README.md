@@ -24,6 +24,7 @@ For details of the *GSAS-II* package, refer to [Toby, B. H. & Von Dreele, R. B. 
 ***
 
 ##<a name="installation"></a>Installation
+
 To apply this patch, place the ***patchSystErrors*** folder in your *GSAS-II* local folder and run **\_\_apply_patch\_\_.py**, or print
 ```r
 execfile('__apply_patch__.py')
